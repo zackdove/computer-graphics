@@ -72,8 +72,10 @@ void greyScaleX(){
     }
 }
 
-vec3 uintToVec3(uint32_t){
-    vec3 v
+vec3 uintToVec3(uint32_t u){
+    vec3 v;
+    //Blue
+    v.z = 
 }
 
 void rainbow(){
@@ -104,6 +106,18 @@ vector<float> interpolate(float start, float end, int steps){
         v.push_back(num);
     }
     return v;
+}
+
+vector<vec3> interpolate3(vec3 start, vec3 end, int steps){
+    vector<vec3> vectors = {};
+    for (int i=0; i<steps; i++){
+        vec3 v;
+        v.x = start.x+((end.x-start.x)*i/(steps-1));
+        v.y = start.y+((end.y-start.y)*i/(steps-1));
+        v.z = start.z+((end.z-start.z)*i/(steps-1));
+        vectors.pus_back(v);
+    }
+    return vectors;
 }
 
 void handleEvent(SDL_Event event)
