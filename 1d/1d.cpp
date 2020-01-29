@@ -70,7 +70,30 @@ void greyScaleX(){
             window.setPixelColour(x, y, colour);
         }
     }
+}
 
+vec3 uintToVec3(uint32_t){
+    vec3 v
+}
+
+void rainbow(){
+    //top left red
+    uint32_t red = (255<<24) + (int(255)<<16) + (int(0)<<8) + int(0));
+    window.setPixelColour(0,0, red);
+    //top right blue
+    uint32_t blue = (255<<24) + (int(0)<<16) + (int(0)<<8) + int(255);
+    window.setPixelColour(window.width-1,0, blue);
+    //bottom left yellow
+    uint32_t yellow = (255<<24) + (int(0)<<16) + (int(255)<<8) + int(255);
+    window.setPixelColour(window.width-1,0, yellow);
+    //bottom right green
+    uint32_t green = (255<<24) + (int(0)<<16) + (int(255)<<8) + int(0);
+    window.setPixelColour(window.width-1,0, green);
+    for(int y=0; y<window.height ;y++) {
+        for(int x=0; x<window.width ;x++) {
+            vec3 left =
+        }
+    }
 }
 
 vector<float> interpolate(float start, float end, int steps){
