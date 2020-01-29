@@ -16,6 +16,7 @@ void draw();
 void update();
 void handleEvent(SDL_Event event);
 vector<float> interpolate(float start, float end, int steps);
+void greyScaleX();
 
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 
@@ -37,6 +38,10 @@ int main(int argc, char* argv[])
 void draw()
 {
     window.clearPixels();
+    greyScaleX();
+}
+
+void redNoise(){
     for(int y=0; y<window.height ;y++) {
         for(int x=0; x<window.width ;x++) {
             float red = rand() % 255;
@@ -53,11 +58,26 @@ void update()
     // Function for performing animation (shifting artifacts or moving the camera)
 }
 
+void greyScaleX(){
+    vector<float> greyValues = interpolate(255, 0, window.width);
+    for(int x=0; x<window.width ;x++) {
+        float red = greyValues.at(x);
+        float green = greyValues.at(x);
+        float blue = greyValues.at(x);
+        //Can simplify
+        uint32_t colour = (255<<24) + (int(red)<<16) + (int(green)<<8) + int(blue);
+        for(int y=0; y<window.height ;y++) {
+            window.setPixelColour(x, y, colour);
+        }
+    }
+
+}
+
 vector<float> interpolate(float start, float end, int steps){
     vector<float> v = {};
     for (int i=0; i<steps; i++){
         float num = start+((end-start)*i/(steps-1));
-        cout << num << endl;
+        // cout << num << endl;
         v.push_back(num);
     }
     return v;
