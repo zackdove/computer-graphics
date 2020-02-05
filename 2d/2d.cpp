@@ -19,11 +19,13 @@ void drawLine(CanvasPoint from, CanvasPoint to, uint32_t colour);
 void drawStrokeTriangle(CanvasTriangle t, uint32_t colour);
 void drawRandomTriangle(bool filled);
 void drawFilledTriangle(CanvasTriangle t, uint32_t colour);
+void loadImage();
 
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 
 int main(int argc, char* argv[])
 {
+    loadImage();
   SDL_Event event;
   while(true)
   {
@@ -39,15 +41,7 @@ int main(int argc, char* argv[])
 void draw()
 {
 
-  CanvasPoint from = CanvasPoint(300, 0);
-  CanvasPoint to = CanvasPoint(300, 500);
-  float red = 255;
-  float green = 255;
-  float blue = 255;
-  uint32_t colour = (255<<24) + (int(red)<<16) + (int(green)<<8) + int(blue);
-  drawLine(from, to, colour);
-  CanvasTriangle t = CanvasTriangle(CanvasPoint(300, 10), CanvasPoint(600, 10), CanvasPoint(450, 310));
-  drawStrokeTriangle(t, colour);
+
 }
 
 void update()
@@ -82,11 +76,8 @@ void drawRandomTriangle(bool filled){
     float blue = rand()%255;
     uint32_t colour = (255<<24) + (int(red)<<16) + (int(green)<<8) + int(blue);
     CanvasPoint a = CanvasPoint(rand()%WIDTH, rand()%HEIGHT);
-    cout << a << endl;
     CanvasPoint b = CanvasPoint(rand()%WIDTH, rand()%HEIGHT);
-    cout << b << endl;
     CanvasPoint c = CanvasPoint(rand()%WIDTH, rand()%HEIGHT);
-    cout << c << endl;
     CanvasTriangle t = CanvasTriangle(a, b, c);
     if (filled){
         drawStrokeTriangle(t, colour);
@@ -137,16 +128,12 @@ void drawFilledTriangle(CanvasTriangle t, uint32_t colour){
             middle = b;
         }
     }
-    cout << "top " << top << endl;
-    cout << "middle " << middle << endl;
-    cout << "bottom " << bottom << endl;
     CanvasPoint d;
     d.y = middle.y;
     float acGradient = (bottom.y-top.y)/(bottom.x-top.x);
     float acIntersection = top.y-top.x*(bottom.y - top.y)/(bottom.x-top.x);
     d.x = (d.y - acIntersection) /acGradient;
-    cout << "d.y " << d.y << endl;
-    cout << "d.x " << d.x << endl;
+
     float abGradient = (middle.y-top.y)/(middle.x-top.x);
     float abIntersection = top.y-top.x*(middle.y - top.y)/(middle.x-top.x);
     for (float y=top.y; y <d.y; y++){
@@ -155,8 +142,7 @@ void drawFilledTriangle(CanvasTriangle t, uint32_t colour){
         if (startX > endX) {
             swap(startX, endX);
         }
-        cout << "startx "<< startX << endl;
-        cout << "endx "<< endX << endl;
+
         for (float x = startX; x < endX; x++){
             window.setPixelColour(round(x), round(y), colour);
         }
@@ -173,6 +159,19 @@ void drawFilledTriangle(CanvasTriangle t, uint32_t colour){
             window.setPixelColour(round(x), round(y), colour);
         }
     }
+}
+
+void loadImage(){
+    char pSix[3];
+    char note[100];
+    // int width ;
+    // int height;
+    // int colourRange;
+    const char* filename = "texture.ppm";
+    FILE* file = fopen(filename, "rb");
+    fscanf(file, "%s", pSix);
+    fscanf(file, "%s", note);
+    cout << "note " << note << endl;
 }
 
 void handleEvent(SDL_Event event)
