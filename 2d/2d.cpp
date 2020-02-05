@@ -16,8 +16,9 @@ void draw();
 void update();
 void handleEvent(SDL_Event event);
 void drawLine(CanvasPoint from, CanvasPoint to, uint32_t colour);
-void drawTriangle(CanvasTriangle t, uint32_t colour);
-void drawRandomTriangle();
+void drawStrokeTriangle(CanvasTriangle t, uint32_t colour);
+void drawRandomTriangle(bool filled);
+void drawFilledTriangle(CanvasTriangle t, uint32_t colour);
 
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 
@@ -26,7 +27,6 @@ int main(int argc, char* argv[])
   SDL_Event event;
   while(true)
   {
-
     // We MUST poll for events - otherwise the window will freeze !
     if(window.pollForInputEvents(&event)) handleEvent(event);
     update();
@@ -47,7 +47,7 @@ void draw()
   uint32_t colour = (255<<24) + (int(red)<<16) + (int(green)<<8) + int(blue);
   drawLine(from, to, colour);
   CanvasTriangle t = CanvasTriangle(CanvasPoint(300, 10), CanvasPoint(600, 10), CanvasPoint(450, 310));
-  drawTriangle(t, colour);
+  drawStrokeTriangle(t, colour);
 }
 
 void update()
@@ -69,14 +69,14 @@ void drawLine(CanvasPoint from, CanvasPoint to, uint32_t colour){
     }
 }
 
-void drawTriangle(CanvasTriangle t, uint32_t colour){
+void drawStrokeTriangle(CanvasTriangle t, uint32_t colour){
     drawLine(t.vertices[0], t.vertices[1], colour);
     drawLine(t.vertices[0], t.vertices[2], colour);
     drawLine(t.vertices[1], t.vertices[2], colour);
 }
 
-void drawRandomTriangle(){
-    cout << "kjdhsskjdhj" << endl;
+void drawRandomTriangle(bool filled){
+
     float red = rand()%255;
     float green = rand()%255;
     float blue = rand()%255;
@@ -88,7 +88,12 @@ void drawRandomTriangle(){
     CanvasPoint c = CanvasPoint(rand()%WIDTH, rand()%HEIGHT);
     cout << c << endl;
     CanvasTriangle t = CanvasTriangle(a, b, c);
-    drawTriangle(t, colour);
+    if (filled){
+        drawStrokeTriangle(t, colour);
+        drawFilledTriangle(t, colour);
+    } else {
+        drawStrokeTriangle(t, colour);
+    }
 }
 
 
@@ -101,12 +106,73 @@ void drawFilledTriangle(CanvasTriangle t, uint32_t colour){
     CanvasPoint a = t.vertices[0];
     CanvasPoint b = t.vertices[1];
     CanvasPoint c = t.vertices[2];
-    top = a;
-    middle = b;
-    bottom = c;
-
-    if (a.y > 
-
+    vector<float> ys = {a.y, b.y, c.y};
+    float max = *max_element(ys.begin(), ys.end());
+    if (a.y == max){
+        bottom =a;
+        if (b.y > c.y){
+            middle = b;
+            top = c;
+        } else {
+            middle = c;
+            top = b;
+        }
+    } else if (b.y == max){
+        bottom = b;
+        if (a.y>c.y){
+            middle = a;
+            top = c;
+        } else {
+            middle = c;
+            top = a;
+        }
+    } else {
+        bottom = c;
+        if (a.y>b.y){
+            middle = a ;
+            top = b;
+        }
+        else {
+            top =a;
+            middle = b;
+        }
+    }
+    cout << "top " << top << endl;
+    cout << "middle " << middle << endl;
+    cout << "bottom " << bottom << endl;
+    CanvasPoint d;
+    d.y = middle.y;
+    float acGradient = (bottom.y-top.y)/(bottom.x-top.x);
+    float acIntersection = top.y-top.x*(bottom.y - top.y)/(bottom.x-top.x);
+    d.x = (d.y - acIntersection) /acGradient;
+    cout << "d.y " << d.y << endl;
+    cout << "d.x " << d.x << endl;
+    float abGradient = (middle.y-top.y)/(middle.x-top.x);
+    float abIntersection = top.y-top.x*(middle.y - top.y)/(middle.x-top.x);
+    for (float y=top.y; y <d.y; y++){
+        float startX = (y-acIntersection) * (1/acGradient);
+        float endX = (y - abIntersection) * (1/abGradient);
+        if (startX > endX) {
+            swap(startX, endX);
+        }
+        cout << "startx "<< startX << endl;
+        cout << "endx "<< endX << endl;
+        for (float x = startX; x < endX; x++){
+            window.setPixelColour(round(x), round(y), colour);
+        }
+    }
+    float bcGradient = (bottom.y-middle.y)/(bottom.x-middle.x);
+    float bcIntersection = middle.y-middle.x*(bottom.y - middle.y)/(bottom.x-middle.x);
+    for (float y=d.y; y < bottom.y; y++){
+        float startX = (y-acIntersection) * (1/acGradient);
+        float endX = (y - bcIntersection) * (1/bcGradient);
+        if (startX > endX) {
+            swap(startX, endX);
+        }
+        for (float x = startX; x < endX; x++){
+            window.setPixelColour(round(x), round(y), colour);
+        }
+    }
 }
 
 void handleEvent(SDL_Event event)
@@ -118,7 +184,12 @@ void handleEvent(SDL_Event event)
     else if(event.key.keysym.sym == SDLK_DOWN) cout << "DOWN" << endl;
     else if(event.key.keysym.sym == SDLK_u) {
         cout << "U" << endl;
-        drawRandomTriangle();
+        drawRandomTriangle(false);
+    }
+    else if(event.key.keysym.sym == SDLK_f) {
+        cout << "F" << endl;
+        window.clearPixels();
+        drawRandomTriangle(true);
     }
   }
   else if(event.type == SDL_MOUSEBUTTONDOWN) cout << "MOUSE CLICKED" << endl;
