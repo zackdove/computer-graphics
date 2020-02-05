@@ -1,6 +1,7 @@
 #include <ModelTriangle.h>
 #include <CanvasTriangle.h>
 #include <DrawingWindow.h>
+#include "Image.h"
 #include <Utils.h>
 #include <glm/glm.hpp>
 #include <fstream>
@@ -19,7 +20,7 @@ void drawLine(CanvasPoint from, CanvasPoint to, uint32_t colour);
 void drawStrokeTriangle(CanvasTriangle t, uint32_t colour);
 void drawRandomTriangle(bool filled);
 void drawFilledTriangle(CanvasTriangle t, uint32_t colour);
-void loadImage();
+Image loadImage();
 
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 
@@ -161,17 +162,47 @@ void drawFilledTriangle(CanvasTriangle t, uint32_t colour){
     }
 }
 
-void loadImage(){
+Image loadImage(){
     char pSix[3];
     char note[100];
-    // int width ;
-    // int height;
-    // int colourRange;
+    int width;
+    int height;
+    int colourRange;
     const char* filename = "texture.ppm";
     FILE* file = fopen(filename, "rb");
-    fscanf(file, "%s", pSix);
-    fscanf(file, "%s", note);
-    cout << "note " << note << endl;
+    fscanf(file, "%s\n", pSix);
+    // fscanf(file, "%s", note);
+    fgets(note, 100, file);
+    fscanf(file, "%d %d\n %d", &width, &height, &colourRange);
+    puts(note);
+    cout << "width " << width << endl;
+    cout << "height " << height << endl;
+    cout << "colourRange " << colourRange << endl;
+    int numOfPixels = width*height;
+
+    vector<uint32_t> pixels;
+    int red = 0;
+    int green = 0;
+    int blue = 0;
+    for (int i=0; i<numOfPixels; i++){
+        fread(&red, 1, 1, file);
+        fread(&green, 1, 1, file);
+        fread(&blue, 1, 1, file);
+        // cout << "red " << red << endl;
+        uint32_t pixel = (255<<24) + (int(red)<<16) + (int(green)<<8) + int(blue);
+        pixels.push_back(pixel);
+    }
+    Image i = Image(width, height, pixels);
+    return i;
+}
+
+void displayImage(){
+    Image image = loadImage();
+    for (int y=0; y<image.height; y++){
+        for (int x=0; x<image.width; x++){
+            window.setPixelColour(round(x), round(y), image.pixels.at((y*image.width)+x));
+        }
+    }
 }
 
 void handleEvent(SDL_Event event)
@@ -187,8 +218,11 @@ void handleEvent(SDL_Event event)
     }
     else if(event.key.keysym.sym == SDLK_f) {
         cout << "F" << endl;
-        window.clearPixels();
         drawRandomTriangle(true);
+    }
+    else if(event.key.keysym.sym == SDLK_i) {
+        cout << "I" << endl;
+        displayImage();
     }
   }
   else if(event.type == SDL_MOUSEBUTTONDOWN) cout << "MOUSE CLICKED" << endl;
