@@ -6,6 +6,7 @@
 #include <glm/glm.hpp>
 #include <fstream>
 #include <vector>
+#include <string>
 
 using namespace std;
 using namespace glm;
@@ -26,7 +27,7 @@ DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 
 int main(int argc, char* argv[])
 {
-    loadImage();
+
   SDL_Event event;
   while(true)
   {
@@ -113,44 +114,44 @@ void drawFilledTriangle(CanvasTriangle t, uint32_t colour){
     }
 }
 
+
 Image loadImage(){
-    char pSix[3];
-    char note[100];
-    int width;
-    int height;
-    int colourRange;
-    const char* filename = "texture.ppm";
-    FILE* file = fopen(filename, "rb");
-    fscanf(file, "%s\n", pSix);
-    // fscanf(file, "%s", note);
-    fgets(note, 100, file);
-    fscanf(file, "%d %d\n %d", &width, &height, &colourRange);
-    puts(note);
-    cout << "width " << width << endl;
-    cout << "height " << height << endl;
-    cout << "colourRange " << colourRange << endl;
-    int numOfPixels = width*height;
-    vector<uint32_t> pixels;
-    int red = 0;
-    int green = 0;
-    int blue = 0;
-    for (int i=0; i<numOfPixels; i++){
-        fread(&red, 1, 1, file);
-        fread(&green, 1, 1, file);
-        fread(&blue, 1, 1, file);
-        // cout << "red " << red << endl;
-        uint32_t pixel = (255<<24) + (int(red)<<16) + (int(green)<<8) + int(blue);
-        pixels.push_back(pixel);
-    }
-    Image i = Image(width, height, pixels);
-    return i;
+  string pSix;
+  string data;
+  string widthAndHeight;
+  string colourRange;
+  ifstream file;
+  file.open("texture.ppm");
+  getline(file, pSix);
+  getline(file,data);
+  getline(file, widthAndHeight);
+  getline(file, colourRange);
+  int spacePosition = widthAndHeight.find(" ");
+  int newlinePosition = widthAndHeight.find("\n");
+  int width = stoi(widthAndHeight.substr(0,spacePosition));
+  int height = stoi(widthAndHeight.substr(spacePosition,newlinePosition));
+  vector<uint32_t> pixels;
+  int numOfPixels = width * height;
+  char red;
+  char green;
+  char blue;
+  for (size_t i = 0; i < numOfPixels; i++ ){
+    red = file.get();
+    green = file.get();
+    blue = file.get();
+    uint32_t pixel = (255<<24) + (int(red)<<16) + (int(green)<<8) + int(blue);
+    pixels.push_back(pixel);
+  }
+  Image i = Image(width, height, pixels);
+  return i;
 }
+
 
 void displayImage(){
     Image image = loadImage();
     for (int y=0; y<image.height; y++){
         for (int x=0; x<image.width; x++){
-            window.setPixelColour(round(x), round(y), image.pixels.at((y*image.width)+x));
+            window.setPixelColour(x, y, image.pixels.at((y*image.width)+x));
         }
     }
 }
@@ -167,26 +168,26 @@ void createTextureTriangle(){
     c.texturePoint = cp;
     CanvasTriangle t = CanvasTriangle(a, b, c);
     t.calculateTriangleMeta();
-    for (float y=t.top.y; y <t.middleIntersect.y; y++){
-        float startX = (y-t.topBottomIntersection) * (1/t.topBottomGradient);
-        float endX = (y - t.topMiddleIntersection) * (1/t.topMiddleGradient);
-        if (startX > endX) {
-            swap(startX, endX);
-        }
-        for (float x = startX; x < endX; x++){
-            window.setPixelColour(round(x), round(y), colour);
-        }
-    }
-    for (float y=t.middleIntersect.y; y < t.bottom.y; y++){
-        float startX = (y-t.topBottomIntersection) * (1/t.topBottomGradient);
-        float endX = (y - t.middleBottomIntersection) * (1/t.middleBottomGradient);
-        if (startX > endX) {
-            swap(startX, endX);
-        }
-        for (float x = startX; x < endX; x++){
-            window.setPixelColour(round(x), round(y), colour);
-        }
-    }
+    // for (float y=t.top.y; y <t.middleIntersect.y; y++){
+    //     float startX = (y-t.topBottomIntersection) * (1/t.topBottomGradient);
+    //     float endX = (y - t.topMiddleIntersection) * (1/t.topMiddleGradient);
+    //     if (startX > endX) {
+    //         swap(startX, endX);
+    //     }
+    //     for (float x = startX; x < endX; x++){
+    //         window.setPixelColour(round(x), round(y), colour);
+    //     }
+    // }
+    // for (float y=t.middleIntersect.y; y < t.bottom.y; y++){
+    //     float startX = (y-t.topBottomIntersection) * (1/t.topBottomGradient);
+    //     float endX = (y - t.middleBottomIntersection) * (1/t.middleBottomGradient);
+    //     if (startX > endX) {
+    //         swap(startX, endX);
+    //     }
+    //     for (float x = startX; x < endX; x++){
+    //         window.setPixelColour(round(x), round(y), colour);
+    //     }
+    // }
 }
 
 
