@@ -89,12 +89,11 @@ void drawRandomTriangle(bool filled){
 }
 
 
-
-void drawFilledTriangle(CanvasTriangle t, uint32_t colour){
+//Calculates the points: top, middle, middleintersect, bottom, and the gradients and intersections of all sides
+CanvasTriangle calculateTriangleMeta(CanvasTriangle t){
     CanvasPoint top;
     CanvasPoint middle;
     CanvasPoint bottom;
-    CanvasPoint ordered[3];
     CanvasPoint a = t.vertices[0];
     CanvasPoint b = t.vertices[1];
     CanvasPoint c = t.vertices[2];
@@ -129,17 +128,44 @@ void drawFilledTriangle(CanvasTriangle t, uint32_t colour){
             middle = b;
         }
     }
-    CanvasPoint d;
-    d.y = middle.y;
-    float acGradient = (bottom.y-top.y)/(bottom.x-top.x);
-    float acIntersection = top.y-top.x*(bottom.y - top.y)/(bottom.x-top.x);
-    d.x = (d.y - acIntersection) /acGradient;
+    CanvasPoint middleIntersect;
+    middleIntersect.y = middle.y;
+    float topBottomGradient = (bottom.y-top.y)/(bottom.x-top.x);
+    float topBottomIntersection = top.y-top.x*(bottom.y - top.y)/(bottom.x-top.x);
+    middleIntersect.x = (middleIntersect.y - topBottomIntersection) /topBottomGradient;
+    float topMiddleGradient = (middle.y-top.y)/(middle.x-top.x);
+    float topMiddleIntersection = top.y-top.x*(middle.y - top.y)/(middle.x-top.x);
+    float middleBottomGradient = (bottom.y-middle.y)/(bottom.x-middle.x);
+    float middleBottomIntersection = middle.y-middle.x*(bottom.y - middle.y)/(bottom.x-middle.x);
 
-    float abGradient = (middle.y-top.y)/(middle.x-top.x);
-    float abIntersection = top.y-top.x*(middle.y - top.y)/(middle.x-top.x);
-    for (float y=top.y; y <d.y; y++){
-        float startX = (y-acIntersection) * (1/acGradient);
-        float endX = (y - abIntersection) * (1/abGradient);
+    t.top = top;
+    t.middle = middle;
+    t.middlIntersect = middleIntersect;
+    t.bottom = bottom;
+
+    t.topBottomGradient = topBottomGradient;
+    float topBottomIntersection;
+    float topMiddleGradient;
+    float topMiddleIntersection;
+    float middleBottomGradient;
+    float middleBottomIntersection;
+
+
+    return sorted;
+}
+
+void drawFilledTriangle(CanvasTriangle t, uint32_t colour){
+    vector<CanvasPoint> sortedVertices = sortVertices(t);
+    CanvasPoint top = sortedVertices.at(0);
+    CanvasPoint middle = sortedVertices.at(1);
+    CanvasPoint middleIntersect = sortedVertices.at(2);
+    CanvasPoint bottom = sortedVertices.at(3);
+
+    float topMiddleGradient =
+    float topMiddleIntersection =
+    for (float y=top.y; y <middleIntersect.y; y++){
+        float startX = (y-topBottomIntersection) * (1/topBottomGradient);
+        float endX = (y - topMiddleIntersection) * (1/topMiddleGradient);
         if (startX > endX) {
             swap(startX, endX);
         }
@@ -148,11 +174,11 @@ void drawFilledTriangle(CanvasTriangle t, uint32_t colour){
             window.setPixelColour(round(x), round(y), colour);
         }
     }
-    float bcGradient = (bottom.y-middle.y)/(bottom.x-middle.x);
-    float bcIntersection = middle.y-middle.x*(bottom.y - middle.y)/(bottom.x-middle.x);
-    for (float y=d.y; y < bottom.y; y++){
-        float startX = (y-acIntersection) * (1/acGradient);
-        float endX = (y - bcIntersection) * (1/bcGradient);
+    float middleBottomGradient =
+    float middleBottomIntersection =
+    for (float y=middleIntersect.y; y < bottom.y; y++){
+        float startX = (y-topBottomIntersection) * (1/topBottomGradient);
+        float endX = (y - middleBottomIntersection) * (1/middleBottomGradient);
         if (startX > endX) {
             swap(startX, endX);
         }
@@ -204,6 +230,22 @@ void displayImage(){
         }
     }
 }
+
+void createTextureTriangle(){
+    CanvasPoint a = CanvasPoint(160, 10);
+    TexturePoint ap = TexturePoint(195, 5);
+    a.texturePoint = ap;
+    CanvasPoint b = CanvasPoint(300, 230);
+    TexturePoint bp = TexturePoint(395, 380);
+    b.texturePoint = bp;
+    CanvasPoint c = CanvasPoint(10, 150);
+    TexturePoint cp = TexturePoint(65 ,330);
+    c.texturePoint = cp;
+    CanvasTriangle t = CanvasTriangle(a, b, c);
+
+}
+
+
 
 void handleEvent(SDL_Event event)
 {

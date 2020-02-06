@@ -6,6 +6,17 @@ class CanvasTriangle
   public:
     CanvasPoint vertices[3];
     Colour colour;
+    CanvasPoint top;
+    CanvasPoint middle;
+    CanvasPoint middleIntersect;
+    CanvasPoint bottom;
+    float topBottomGradient;
+    float topBottomIntersection;
+    float topMiddleGradient;
+    float topMiddleIntersection;
+    float middleBottomGradient;
+    float middleBottomIntersection;
+
 
     CanvasTriangle()
     {
