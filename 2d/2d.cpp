@@ -89,96 +89,21 @@ void drawRandomTriangle(bool filled){
 }
 
 
-//Calculates the points: top, middle, middleintersect, bottom, and the gradients and intersections of all sides
-CanvasTriangle calculateTriangleMeta(CanvasTriangle t){
-    CanvasPoint top;
-    CanvasPoint middle;
-    CanvasPoint bottom;
-    CanvasPoint a = t.vertices[0];
-    CanvasPoint b = t.vertices[1];
-    CanvasPoint c = t.vertices[2];
-    vector<float> ys = {a.y, b.y, c.y};
-    float max = *max_element(ys.begin(), ys.end());
-    if (a.y == max){
-        bottom =a;
-        if (b.y > c.y){
-            middle = b;
-            top = c;
-        } else {
-            middle = c;
-            top = b;
-        }
-    } else if (b.y == max){
-        bottom = b;
-        if (a.y>c.y){
-            middle = a;
-            top = c;
-        } else {
-            middle = c;
-            top = a;
-        }
-    } else {
-        bottom = c;
-        if (a.y>b.y){
-            middle = a ;
-            top = b;
-        }
-        else {
-            top =a;
-            middle = b;
-        }
-    }
-    CanvasPoint middleIntersect;
-    middleIntersect.y = middle.y;
-    float topBottomGradient = (bottom.y-top.y)/(bottom.x-top.x);
-    float topBottomIntersection = top.y-top.x*(bottom.y - top.y)/(bottom.x-top.x);
-    middleIntersect.x = (middleIntersect.y - topBottomIntersection) /topBottomGradient;
-    float topMiddleGradient = (middle.y-top.y)/(middle.x-top.x);
-    float topMiddleIntersection = top.y-top.x*(middle.y - top.y)/(middle.x-top.x);
-    float middleBottomGradient = (bottom.y-middle.y)/(bottom.x-middle.x);
-    float middleBottomIntersection = middle.y-middle.x*(bottom.y - middle.y)/(bottom.x-middle.x);
-
-    t.top = top;
-    t.middle = middle;
-    t.middlIntersect = middleIntersect;
-    t.bottom = bottom;
-
-    t.topBottomGradient = topBottomGradient;
-    float topBottomIntersection;
-    float topMiddleGradient;
-    float topMiddleIntersection;
-    float middleBottomGradient;
-    float middleBottomIntersection;
-
-
-    return sorted;
-}
-
 void drawFilledTriangle(CanvasTriangle t, uint32_t colour){
-    vector<CanvasPoint> sortedVertices = sortVertices(t);
-    CanvasPoint top = sortedVertices.at(0);
-    CanvasPoint middle = sortedVertices.at(1);
-    CanvasPoint middleIntersect = sortedVertices.at(2);
-    CanvasPoint bottom = sortedVertices.at(3);
-
-    float topMiddleGradient =
-    float topMiddleIntersection =
-    for (float y=top.y; y <middleIntersect.y; y++){
-        float startX = (y-topBottomIntersection) * (1/topBottomGradient);
-        float endX = (y - topMiddleIntersection) * (1/topMiddleGradient);
+    t.calculateTriangleMeta();
+    for (float y=t.top.y; y <t.middleIntersect.y; y++){
+        float startX = (y-t.topBottomIntersection) * (1/t.topBottomGradient);
+        float endX = (y - t.topMiddleIntersection) * (1/t.topMiddleGradient);
         if (startX > endX) {
             swap(startX, endX);
         }
-
         for (float x = startX; x < endX; x++){
             window.setPixelColour(round(x), round(y), colour);
         }
     }
-    float middleBottomGradient =
-    float middleBottomIntersection =
-    for (float y=middleIntersect.y; y < bottom.y; y++){
-        float startX = (y-topBottomIntersection) * (1/topBottomGradient);
-        float endX = (y - middleBottomIntersection) * (1/middleBottomGradient);
+    for (float y=t.middleIntersect.y; y < t.bottom.y; y++){
+        float startX = (y-t.topBottomIntersection) * (1/t.topBottomGradient);
+        float endX = (y - t.middleBottomIntersection) * (1/t.middleBottomGradient);
         if (startX > endX) {
             swap(startX, endX);
         }
@@ -205,7 +130,6 @@ Image loadImage(){
     cout << "height " << height << endl;
     cout << "colourRange " << colourRange << endl;
     int numOfPixels = width*height;
-
     vector<uint32_t> pixels;
     int red = 0;
     int green = 0;
@@ -242,7 +166,27 @@ void createTextureTriangle(){
     TexturePoint cp = TexturePoint(65 ,330);
     c.texturePoint = cp;
     CanvasTriangle t = CanvasTriangle(a, b, c);
-
+    t.calculateTriangleMeta();
+    for (float y=t.top.y; y <t.middleIntersect.y; y++){
+        float startX = (y-t.topBottomIntersection) * (1/t.topBottomGradient);
+        float endX = (y - t.topMiddleIntersection) * (1/t.topMiddleGradient);
+        if (startX > endX) {
+            swap(startX, endX);
+        }
+        for (float x = startX; x < endX; x++){
+            window.setPixelColour(round(x), round(y), colour);
+        }
+    }
+    for (float y=t.middleIntersect.y; y < t.bottom.y; y++){
+        float startX = (y-t.topBottomIntersection) * (1/t.topBottomGradient);
+        float endX = (y - t.middleBottomIntersection) * (1/t.middleBottomGradient);
+        if (startX > endX) {
+            swap(startX, endX);
+        }
+        for (float x = startX; x < endX; x++){
+            window.setPixelColour(round(x), round(y), colour);
+        }
+    }
 }
 
 
