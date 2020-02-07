@@ -132,9 +132,9 @@ Image loadImage(){
   int height = stoi(widthAndHeight.substr(spacePosition,newlinePosition));
   vector<uint32_t> pixels;
   int numOfPixels = width * height;
-  char red;
-  char green;
-  char blue;
+  int red;
+  int green;
+  int blue;
   for (size_t i = 0; i < numOfPixels; i++ ){
     red = file.get();
     green = file.get();
