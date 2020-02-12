@@ -354,24 +354,29 @@ vector<ModelTriangle> loadObj(){
 }
 
 CanvasTriangle triangleToCanvas(ModelTriangle t){
-    float cameraDistance = 1;
+    float cameraDistance = -12.2;
     //Move the camera for the lines below, needs x y adjustment
     //Loop through each point
     float xi = (t.vertices[0].x*cameraDistance) / t.vertices[0].z;
     float yi = (t.vertices[0].y*cameraDistance) / t.vertices[0].z;
-    CanvasPoint a = CanvasPoint(xi, yi);
+    CanvasPoint a = CanvasPoint(xi+(WIDTH/2), yi+(HEIGHT/2));
     xi = (t.vertices[1].x*cameraDistance) / t.vertices[1].z;
     yi = (t.vertices[1].y*cameraDistance) / t.vertices[1].z;
-    CanvasPoint b = CanvasPoint (xi, yi);
+    CanvasPoint b = CanvasPoint (xi+(WIDTH/2), yi+(HEIGHT/2));
     xi = (t.vertices[2].x*cameraDistance) / t.vertices[2].z;
     yi = (t.vertices[2].y*cameraDistance) / t.vertices[2].z;
-    CanvasPoint c = CanvasPoint (xi, yi);
+    CanvasPoint c = CanvasPoint (xi+(WIDTH/2), yi+(HEIGHT/2));
     CanvasTriangle ct = CanvasTriangle(a, b, c);
     return ct;
 }
 
 void drawWireframes(){
-    
+    vector<ModelTriangle> triangles = loadObj();
+    for (int i = 0; i < triangles.size(); i++){
+        CanvasTriangle t = triangleToCanvas(triangles.at(i));
+        uint32_t colour = (255<<24) + (int(255)<<16) + (int(255)<<8) + int(255);
+        drawStrokeTriangle(t, colour);
+    }
 }
 
 
@@ -409,6 +414,10 @@ void handleEvent(SDL_Event event)
         else if(event.key.keysym.sym == SDLK_o) {
             cout << "O" << endl;
             loadObj();
+        }
+        else if(event.key.keysym.sym == SDLK_w) {
+            cout << "W" << endl;
+            drawWireframes();
         }
     }
     else if(event.type == SDL_MOUSEBUTTONDOWN) cout << "MOUSE CLICKED" << endl;
