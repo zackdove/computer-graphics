@@ -8,6 +8,7 @@
 #include <vector>
 #include <string>
 #include <math.h>
+#include "threeDPoint.h"
 
 using namespace std;
 using namespace glm;
@@ -180,13 +181,7 @@ void drawTrianglesForTexture(CanvasTriangle t){
 }
 
 
-void interpolate3d(CanvasTriangle t){
 
-}
-
-float calculateEuclidianDistance(CanvasPoint a, CanvasPoint b){
-    return sqrt( (b.x-a.x)*(b.x-a.x) +  (b.y-a.y)*(b.y-a.y)  );
-}
 
 vector<CanvasPoint> interpolatePoints(CanvasPoint start, CanvasPoint end, int steps){
     vector<CanvasPoint> points;
@@ -225,7 +220,6 @@ void createTextureTriangle(){
     t.middleIntersect.texturePoint.x = (t.bottom.texturePoint.x - t.top.texturePoint.x) * ratio + t.top.texturePoint.x;
     t.middleIntersect.texturePoint.y = (t.bottom.texturePoint.y - t.top.texturePoint.y) * ratio + t.top.texturePoint.y;
     drawTrianglesForTexture(t);
-
     //Top triangle
     int height = t.middle.y-t.top.y;
     vector<CanvasPoint> starts = interpolatePoints(t.top, t.middle, height);
@@ -242,7 +236,6 @@ void createTextureTriangle(){
     }
     cout << "starting bottom triangle" << endl;
     //Bottom triangle
-
     int bottomHeight = t.bottom.y-t.middle.y;
     vector<CanvasPoint> bottomStarts = interpolatePoints(t.middle, t.bottom, bottomHeight);
     vector<CanvasPoint> bottomEnds = interpolatePoints(t.middleIntersect, t.bottom, bottomHeight);
@@ -258,6 +251,85 @@ void createTextureTriangle(){
         for (int x=0; x<width; x++){
             cout << "x: " << x << endl;
             window.setPixelColour(bottomStarts.at(y).x+x, bottomStarts.at(y).y-1, i.getPixel(row.at(x).x, row.at(x).y));
+        }
+    }
+}
+
+vector<Colour> loadMtl(string path){
+    // name = "cornell_box/cornell_box.mtl"
+    string nameLine;
+    string propertiesLine;
+    ifstream file;
+    file.open(name);
+    vector<Colour> colours;
+    while (true) {
+        getline(file, nameLine);
+        //Char 32 is space
+        char space = char(32);
+        string name = split(nameLine, space)[1];
+        // cout << name << endl;
+        getline(file, propertiesLine);
+        string redString = split(propertiesLine, space)[1];
+        string greenString = split(propertiesLine, space)[2];
+        string blueString = split(propertiesLine, space)[3];
+        Colour c = Colour(name, redString, greenString, blueString);
+        colours.push_back(c);
+        cout << c << endl;
+        string emptyLine;
+        getline(file, emptyLine);
+        if( file.eof() ) break;
+    }
+    return colours;
+}
+
+Colour getColourByName(vector<Colour> colours, string name){
+    for (int i = 0; i<colours.size(); i ++){
+        if (!strcmp(colours.at(i).name, name){
+            return colour;
+        }
+    }
+    cout << "Colour not found" << endl;
+}
+
+void loadObj(){
+    ifstream file;
+    file.open("cornell-box/cornell-box.obj");
+    char space = char(32);
+    vector<string> materialFileNames;
+    vector<vec3> points;
+    vector<Colour> colours;
+    //Get vertices, and material files
+    while (true){
+        string line;
+        getline(file, line);
+        string* items = split(line, space);
+        if (!strcmp(items[0], "mtllib")){
+            vector<Colour> newColours = loadMtl(items[1]);
+            colours.insert(colours.end(), newColours.begin(), newColours.end() );
+        } else if (!strcmp(identifier, "v")){
+            vec3 point = vec3( items[1], items[2], items[3] );
+            points.push_back(point);
+        }
+        if (file.eof() ) break;
+    }
+    //Get triangles, and their objects & materials
+    while (true){
+        string line;
+        getline(file, line);
+        string* items = split(line, space);
+        string objectName;
+        string materialName;
+        Colour currentColour;
+        if (!strcmp(items[0], "o")){
+            objectName = items[1];
+        }
+        if (!strcmp(items[0], "usemtl")){
+            materialName = items[1];
+            currentColour = getColourByName(colours, materialName);
+        }
+        if (!strcmp(items[0], "f")){
+            ModelTriangle t;
+
         }
     }
 }
@@ -290,6 +362,10 @@ void handleEvent(SDL_Event event)
         else if(event.key.keysym.sym == SDLK_c) {
             cout << "C" << endl;
             window.clearPixels();
+        }
+        else if(event.key.keysym.sym == SDLK_m) {
+            cout << "M" << endl;
+            loadMtl();
         }
     }
     else if(event.type == SDL_MOUSEBUTTONDOWN) cout << "MOUSE CLICKED" << endl;

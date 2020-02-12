@@ -1,9 +1,10 @@
 #include <iostream>
-
+#include <string>
 class Colour
 {
   public:
     std::string name;
+    //Ints 0 - 255
     int red;
     int green;
     int blue;
@@ -27,6 +28,19 @@ class Colour
       green = g;
       blue = b;
     }
+
+    Colour(std::string n, std::string r, std::string g, std::string b){
+        name = n;
+        red = stof(r) * 255;
+        green = stof(g) * 255;
+        blue = stof(b) * 255;
+    }
+
+    uint32_t getPacked(){
+        uint32_t colour = (255<<24) + (int(red)<<16) + (int(green)<<8) + int(blue);
+        return colour;
+    }
+
 };
 
 std::ostream& operator<<(std::ostream& os, const Colour& colour)
