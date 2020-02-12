@@ -7,7 +7,7 @@ class ModelTriangle
   public:
     glm::vec3 vertices[3];
     Colour colour;
-    string objectName;
+    std::string objectName;
 
     ModelTriangle()
     {
@@ -21,12 +21,13 @@ class ModelTriangle
       colour = trigColour;
     }
 
-    ModelTriangle(glm::vec3 v0, glm::vec3 v1, glm::vec3 v2, Colour trigColour, string object)
+    ModelTriangle(glm::vec3 v0, glm::vec3 v1, glm::vec3 v2, Colour trigColour, std::string o)
     {
       vertices[0] = v0;
       vertices[1] = v1;
       vertices[2] = v2;
       colour = trigColour;
+      objectName = o;
     }
 };
 

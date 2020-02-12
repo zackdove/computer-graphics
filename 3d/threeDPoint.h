@@ -1,4 +1,3 @@
-#include "TexturePoint.h"
 #include <iostream>
 #include <vector>
 
@@ -11,7 +10,7 @@ class threeDPoint
     float y;
     float z;
 
-    CanvasPoint(float xPos, float yPos, float zPos)
+    threeDPoint(float xPos, float yPos, float zPos)
     {
       x = xPos;
       y = yPos;

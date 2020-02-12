@@ -260,21 +260,24 @@ vector<Colour> loadMtl(string path){
     string nameLine;
     string propertiesLine;
     ifstream file;
-    file.open(name);
+    file.open(path);
+    if (file.fail()){
+        cout << ".MTL FILE COULD NOT BE OPENED" << endl;
+    }
     vector<Colour> colours;
     while (true) {
         getline(file, nameLine);
         //Char 32 is space
         char space = char(32);
         string name = split(nameLine, space)[1];
-        // cout << name << endl;
+        cout << name << endl;
         getline(file, propertiesLine);
         string redString = split(propertiesLine, space)[1];
         string greenString = split(propertiesLine, space)[2];
         string blueString = split(propertiesLine, space)[3];
         Colour c = Colour(name, redString, greenString, blueString);
         colours.push_back(c);
-        cout << c << endl;
+        // cout << c << endl;
         string emptyLine;
         getline(file, emptyLine);
         if( file.eof() ) break;
@@ -284,35 +287,41 @@ vector<Colour> loadMtl(string path){
 
 Colour getColourByName(vector<Colour> colours, string name){
     for (int i = 0; i<colours.size(); i ++){
-        if (!strcmp(colours.at(i).name, name){
-            return colour;
+        if (!name.compare(colours.at(i).name)){
+            return colours.at(i);
         }
     }
     cout << "Colour not found" << endl;
+    return Colour();
 }
 
-void loadObj(){
+vector<ModelTriangle> loadObj(){
     ifstream file;
     file.open("cornell-box/cornell-box.obj");
     char space = char(32);
     vector<string> materialFileNames;
     vector<vec3> points;
     vector<Colour> colours;
+    vector<ModelTriangle> triangles;
     //Get vertices, and material files
     while (true){
         string line;
         getline(file, line);
         string* items = split(line, space);
-        if (!strcmp(items[0], "mtllib")){
+        if (!items[0].compare("mtllib")){
             vector<Colour> newColours = loadMtl(items[1]);
             colours.insert(colours.end(), newColours.begin(), newColours.end() );
-        } else if (!strcmp(identifier, "v")){
-            vec3 point = vec3( items[1], items[2], items[3] );
+        } else if (!items[0].compare("v")){
+            vec3 point = vec3( stof(items[1]), stof(items[2]), stof(items[3]) );
+            // vec3 point = vec3(1, 1, 1);
             points.push_back(point);
         }
         if (file.eof() ) break;
     }
-    //Get triangles, and their objects & materials
+    cout << "Vertices and material files loaded" << endl;
+    //Get triangles, and their objects & materials, reset file pointer first
+    file.clear();
+    file.seekg(0, ios::beg);
     while (true){
         string line;
         getline(file, line);
@@ -320,20 +329,50 @@ void loadObj(){
         string objectName;
         string materialName;
         Colour currentColour;
-        if (!strcmp(items[0], "o")){
+        if (!items[0].compare("o")){
             objectName = items[1];
         }
-        if (!strcmp(items[0], "usemtl")){
+        if (!items[0].compare("usemtl")){
             materialName = items[1];
             currentColour = getColourByName(colours, materialName);
         }
-        if (!strcmp(items[0], "f")){
-            ModelTriangle t;
-
+        if (!items[0].compare("f")){
+            items[1].pop_back();
+            items[2].pop_back();
+            items[3].pop_back();
+            int a = stoi(items[1]) -1 ;
+            int b = stoi(items[2]) -1;
+            int c = stoi(items[3]) -1;
+            ModelTriangle t = ModelTriangle(points.at(a), points.at(b), points.at(c), currentColour, objectName);
+            triangles.push_back(t);
+            // cout << t << endl;
         }
+        if (file.eof() ) break;
     }
+    cout << "triangles, objects and materials loaded" << endl;
+    return triangles;
 }
 
+CanvasTriangle triangleToCanvas(ModelTriangle t){
+    float cameraDistance = 1;
+    //Move the camera for the lines below, needs x y adjustment
+    //Loop through each point
+    float xi = (t.vertices[0].x*cameraDistance) / t.vertices[0].z;
+    float yi = (t.vertices[0].y*cameraDistance) / t.vertices[0].z;
+    CanvasPoint a = CanvasPoint(xi, yi);
+    xi = (t.vertices[1].x*cameraDistance) / t.vertices[1].z;
+    yi = (t.vertices[1].y*cameraDistance) / t.vertices[1].z;
+    CanvasPoint b = CanvasPoint (xi, yi);
+    xi = (t.vertices[2].x*cameraDistance) / t.vertices[2].z;
+    yi = (t.vertices[2].y*cameraDistance) / t.vertices[2].z;
+    CanvasPoint c = CanvasPoint (xi, yi);
+    CanvasTriangle ct = CanvasTriangle(a, b, c);
+    return ct;
+}
+
+void drawWireframes(){
+    
+}
 
 
 void handleEvent(SDL_Event event)
@@ -365,7 +404,11 @@ void handleEvent(SDL_Event event)
         }
         else if(event.key.keysym.sym == SDLK_m) {
             cout << "M" << endl;
-            loadMtl();
+            loadMtl("cornell-box/cornell-box.mtl");
+        }
+        else if(event.key.keysym.sym == SDLK_o) {
+            cout << "O" << endl;
+            loadObj();
         }
     }
     else if(event.type == SDL_MOUSEBUTTONDOWN) cout << "MOUSE CLICKED" << endl;

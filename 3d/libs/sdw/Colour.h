@@ -31,9 +31,12 @@ class Colour
 
     Colour(std::string n, std::string r, std::string g, std::string b){
         name = n;
-        red = stof(r) * 255;
-        green = stof(g) * 255;
-        blue = stof(b) * 255;
+        // red = stof(r) * 255;
+        // green = stof(g) * 255;
+        // blue = stof(b) * 255;
+        red = 255;
+        green = 255;
+        blue = 255;
     }
 
     uint32_t getPacked(){
