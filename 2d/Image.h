@@ -19,6 +19,10 @@ class Image
       height = h;
     }
 
+    uint32_t getPixel(int x, int y){
+        return (pixels.at((y*width)+x));
+    }
+
 };
 
 std::ostream& operator<<(std::ostream& os, const Image& i)

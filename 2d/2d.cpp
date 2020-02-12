@@ -192,6 +192,7 @@ vector<CanvasPoint> interpolatePoints(CanvasPoint start, CanvasPoint end, int st
     vector<CanvasPoint> points;
     for (int i=0; i<steps; i++){
         CanvasPoint p;
+        if (steps == 1) steps = 2;
         p.x = start.x+((end.x-start.x)*i/(steps-1));
         p.y = start.y+((end.y-start.y)*i/(steps-1));
         // cout << "R " << v.x << endl;
@@ -208,6 +209,7 @@ CanvasPoint texturePointToCanvasPoint(TexturePoint t){
 }
 
 void createTextureTriangle(){
+    Image i = loadImage();
     CanvasPoint a = CanvasPoint(160, 10);
     TexturePoint ap = TexturePoint(195, 5);
     a.texturePoint = ap;
@@ -219,19 +221,45 @@ void createTextureTriangle(){
     c.texturePoint = cp;
     CanvasTriangle t = CanvasTriangle(a, b, c);
     t.calculateTriangleMeta();
-    int height = t.top.y-t.middle.y;
     float ratio = (t.middle.y - t.top.y) / (t.bottom.y - t.top.y);
     t.middleIntersect.texturePoint.x = (t.bottom.texturePoint.x - t.top.texturePoint.x) * ratio + t.top.texturePoint.x;
     t.middleIntersect.texturePoint.y = (t.bottom.texturePoint.y - t.top.texturePoint.y) * ratio + t.top.texturePoint.y;
     drawTrianglesForTexture(t);
+
+    //Top triangle
+    int height = t.middle.y-t.top.y;
     vector<CanvasPoint> starts = interpolatePoints(t.top, t.middle, height);
     vector<CanvasPoint> ends = interpolatePoints(t.top, t.middleIntersect, height);
     vector<CanvasPoint> textureStarts = interpolatePoints(texturePointToCanvasPoint(t.top.texturePoint), texturePointToCanvasPoint(t.middle.texturePoint), height);
-    vector<CanvasPoint> textureEnds = interpolatePoints(texturePointToCanvasPoint(t.top.texturePoint), texturePointToCanvasPoint(t.middle.texturePoint), height);
-    // for (int y = 0; y<height; y++){
-    //     starts.at(y).text
-    //     vector<CanvasPoint> row = interpolatePoints(starts.at(y).x, ends.at(y).x, );
-    // }
+    vector<CanvasPoint> textureEnds = interpolatePoints(texturePointToCanvasPoint(t.top.texturePoint), texturePointToCanvasPoint(t.middleIntersect.texturePoint), height);
+    for (int y = 0; y<height; y++){
+        int width = ends.at(y).x - starts.at(y).x;
+        // cout << width << endl;
+        vector<CanvasPoint> row = interpolatePoints(textureStarts.at(y), textureEnds.at(y), width);
+        for (int x=0; x<width; x++){
+            window.setPixelColour(starts.at(y).x+x, starts.at(y).y, i.getPixel(row.at(x).x, row.at(x).y));
+        }
+    }
+    cout << "starting bottom triangle" << endl;
+    //Bottom triangle
+
+    int bottomHeight = t.bottom.y-t.middle.y;
+    vector<CanvasPoint> bottomStarts = interpolatePoints(t.middle, t.bottom, bottomHeight);
+    vector<CanvasPoint> bottomEnds = interpolatePoints(t.middleIntersect, t.bottom, bottomHeight);
+    // cout << bottomStarts.size() << endl;
+    // cout << bottomEnds.size() << endl;
+    vector<CanvasPoint> bottomTextureStarts = interpolatePoints(texturePointToCanvasPoint(t.middle.texturePoint), texturePointToCanvasPoint(t.bottom.texturePoint), bottomHeight);
+    vector<CanvasPoint> bottomTextureEnds = interpolatePoints(texturePointToCanvasPoint(t.middleIntersect.texturePoint), texturePointToCanvasPoint(t.bottom.texturePoint), bottomHeight);
+    for (int y = 0; y<bottomHeight; y++){
+        int width = bottomEnds.at(y).x - bottomStarts.at(y).x;
+        // cout << width << endl;
+        // cout << y << endl;
+        vector<CanvasPoint> row = interpolatePoints(bottomTextureStarts.at(y), bottomTextureEnds.at(y), width);
+        for (int x=0; x<width; x++){
+            cout << "x: " << x << endl;
+            window.setPixelColour(bottomStarts.at(y).x+x, bottomStarts.at(y).y-1, i.getPixel(row.at(x).x, row.at(x).y));
+        }
+    }
 }
 
 
