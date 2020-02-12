@@ -84,6 +84,10 @@ class CanvasTriangle
         middleBottomIntersection = middle.y-middle.x*(bottom.y - middle.y)/(bottom.x-middle.x);
     }
 
+    
+
+
+
 };
 
 std::ostream& operator<<(std::ostream& os, const CanvasTriangle& triangle)

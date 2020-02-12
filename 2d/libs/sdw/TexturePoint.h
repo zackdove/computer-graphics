@@ -19,6 +19,7 @@ class TexturePoint
     void print()
     {
     }
+
 };
 
 std::ostream& operator<<(std::ostream& os, const TexturePoint& point)

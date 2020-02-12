@@ -179,8 +179,32 @@ void drawTrianglesForTexture(CanvasTriangle t){
 
 }
 
+
+void interpolate3d(CanvasTriangle t){
+
+}
+
 float calculateEuclidianDistance(CanvasPoint a, CanvasPoint b){
     return sqrt( (b.x-a.x)*(b.x-a.x) +  (b.y-a.y)*(b.y-a.y)  );
+}
+
+vector<CanvasPoint> interpolatePoints(CanvasPoint start, CanvasPoint end, int steps){
+    vector<CanvasPoint> points;
+    for (int i=0; i<steps; i++){
+        CanvasPoint p;
+        p.x = start.x+((end.x-start.x)*i/(steps-1));
+        p.y = start.y+((end.y-start.y)*i/(steps-1));
+        // cout << "R " << v.x << endl;
+        // cout << "G " << v.y << endl;
+        // cout << "B " << v.z << endl;
+        points.push_back(p);
+    }
+    return points;
+}
+
+CanvasPoint texturePointToCanvasPoint(TexturePoint t){
+    CanvasPoint p = CanvasPoint(t.x, t.y);
+    return p;
 }
 
 void createTextureTriangle(){
@@ -195,21 +219,19 @@ void createTextureTriangle(){
     c.texturePoint = cp;
     CanvasTriangle t = CanvasTriangle(a, b, c);
     t.calculateTriangleMeta();
-    float topBottomDist = calculateEuclidianDistance(t.top, t.bottom);
-    float topMiddleIntersectDist = calculateEuclidianDistance(t.top, t.middleIntersect);
-    float originalRatio = topMiddleIntersectDist / topBottomDist;
-    // float textureTopBottomDist = calculateEuclidianDistance(CanvasPoint(t.top.texturePoint), CanvasPoint(t.bottom.texturePoint));
-    // float textureTopMiddleIntersectDist = textureTopBottomDist * originalRatio;
-
-    // float middleIntersectRatioX = (t.middleIntersect.x-t.top.x)/(t.bottom.x-t.top.x);
-    // float middleIntersectRatioY = (t.middleIntersect.y-t.top.y)/(t.bottom.y-t.top.y);
-    // float topBottomDistXTexture = (t.bottom.texturePoint.x - t.top.texturePoint.x);
-    // float topBottomDistYTexture = (t.bottom.texturePoint.y - t.top.texturePoint.y);
-    t.middleIntersect.texturePoint.x = ((1-originalRatio)*t.top.texturePoint.x) + t.bottom.texturePoint.x;
-    t.middleIntersect.texturePoint.y = ((1-originalRatio)*t.top.texturePoint.y) + t.bottom.texturePoint.y;
-
-    // t.middleIntersect.texturePoint.y = middleIntersectRatioY * topBottomDistYTexture;
+    int height = t.top.y-t.middle.y;
+    float ratio = (t.middle.y - t.top.y) / (t.bottom.y - t.top.y);
+    t.middleIntersect.texturePoint.x = (t.bottom.texturePoint.x - t.top.texturePoint.x) * ratio + t.top.texturePoint.x;
+    t.middleIntersect.texturePoint.y = (t.bottom.texturePoint.y - t.top.texturePoint.y) * ratio + t.top.texturePoint.y;
     drawTrianglesForTexture(t);
+    vector<CanvasPoint> starts = interpolatePoints(t.top, t.middle, height);
+    vector<CanvasPoint> ends = interpolatePoints(t.top, t.middleIntersect, height);
+    vector<CanvasPoint> textureStarts = interpolatePoints(texturePointToCanvasPoint(t.top.texturePoint), texturePointToCanvasPoint(t.middle.texturePoint), height);
+    vector<CanvasPoint> textureEnds = interpolatePoints(texturePointToCanvasPoint(t.top.texturePoint), texturePointToCanvasPoint(t.middle.texturePoint), height);
+    // for (int y = 0; y<height; y++){
+    //     starts.at(y).text
+    //     vector<CanvasPoint> row = interpolatePoints(starts.at(y).x, ends.at(y).x, );
+    // }
 }
 
 
@@ -236,6 +258,10 @@ void handleEvent(SDL_Event event)
         else if(event.key.keysym.sym == SDLK_t) {
             cout << "T" << endl;
             createTextureTriangle();
+        }
+        else if(event.key.keysym.sym == SDLK_c) {
+            cout << "C" << endl;
+            window.clearPixels();
         }
     }
     else if(event.type == SDL_MOUSEBUTTONDOWN) cout << "MOUSE CLICKED" << endl;
