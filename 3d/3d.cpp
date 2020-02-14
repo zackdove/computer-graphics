@@ -356,8 +356,8 @@ vector<ModelTriangle> loadObj(){
 
 CanvasTriangle triangleToCanvas(ModelTriangle t){
   //chnage this to something more meaningful
-  vec3 camera(0,0,- HEIGHT/5);
-  float focalLength = 8 * HEIGHT;
+  vec3 camera(0,0, 10);
+  float focalLength = 400;
   // change this to a for loop
   CanvasTriangle currentTriangle;
   for (int i = 0; i < 3; i++){
@@ -367,7 +367,7 @@ CanvasTriangle triangleToCanvas(ModelTriangle t){
     float xDistanceFromCamera = xWorld - camera.x;
     float yDistanceFromCamera = yWorld -camera.y;
     float zDistanceFromCamera = zWorld - camera.z;
-    float ratio = focalLength/ zDistanceFromCamera;
+    float ratio = focalLength/ -zDistanceFromCamera;
     // change to int?
     int xImage = (xDistanceFromCamera*ratio) + WIDTH/2;
     int yImage = ((1-yDistanceFromCamera)*ratio) + HEIGHT/2;
