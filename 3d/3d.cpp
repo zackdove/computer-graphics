@@ -345,7 +345,7 @@ vector<ModelTriangle> loadObj(){
             int c = stoi(items[3]) -1;
             ModelTriangle t = ModelTriangle(points.at(a), points.at(b), points.at(c), currentColour, objectName);
             triangles.push_back(t);
-            // cout << t << endl;
+            cout << t << endl;
         }
         if (file.eof() ) break;
     }
@@ -353,28 +353,36 @@ vector<ModelTriangle> loadObj(){
     return triangles;
 }
 
+
 CanvasTriangle triangleToCanvas(ModelTriangle t){
-    float cameraDistance = -12.2;
-    //Move the camera for the lines below, needs x y adjustment
-    //Loop through each point
-    float xi = (t.vertices[0].x*cameraDistance) / t.vertices[0].z;
-    float yi = (t.vertices[0].y*cameraDistance) / t.vertices[0].z;
-    CanvasPoint a = CanvasPoint(xi+(WIDTH/2), yi+(HEIGHT/2));
-    xi = (t.vertices[1].x*cameraDistance) / t.vertices[1].z;
-    yi = (t.vertices[1].y*cameraDistance) / t.vertices[1].z;
-    CanvasPoint b = CanvasPoint (xi+(WIDTH/2), yi+(HEIGHT/2));
-    xi = (t.vertices[2].x*cameraDistance) / t.vertices[2].z;
-    yi = (t.vertices[2].y*cameraDistance) / t.vertices[2].z;
-    CanvasPoint c = CanvasPoint (xi+(WIDTH/2), yi+(HEIGHT/2));
-    CanvasTriangle ct = CanvasTriangle(a, b, c);
-    return ct;
+  //chnage this to something more meaningful
+  vec3 camera(0,0,- HEIGHT/5);
+  float focalLength = 8 * HEIGHT;
+  // change this to a for loop
+  CanvasTriangle currentTriangle;
+  for (int i = 0; i < 3; i++){
+    float xWorld = t.vertices[i].x;
+    float yWorld = t.vertices[i].y;
+    float zWorld = t.vertices[i].z;
+    float xDistanceFromCamera = xWorld - camera.x;
+    float yDistanceFromCamera = yWorld -camera.y;
+    float zDistanceFromCamera = zWorld - camera.z;
+    float ratio = focalLength/ zDistanceFromCamera;
+    // change to int?
+    int xImage = (xDistanceFromCamera*ratio) + WIDTH/2;
+    int yImage = ((1-yDistanceFromCamera)*ratio) + HEIGHT/2;
+    CanvasPoint currentPoint(xImage, yImage);
+    currentTriangle.vertices[i] = currentPoint;
+  }
+  return currentTriangle;
 }
 
 void drawWireframes(){
     vector<ModelTriangle> triangles = loadObj();
     for (int i = 0; i < triangles.size(); i++){
-        CanvasTriangle t = triangleToCanvas(triangles.at(i));
-        uint32_t colour = (255<<24) + (int(255)<<16) + (int(255)<<8) + int(255);
+        ModelTriangle currentTriangle = triangles.at(i);
+        CanvasTriangle t = triangleToCanvas(currentTriangle);
+        uint32_t colour = (255<<24) + (int(currentTriangle.colour.red)<<16) + (int(currentTriangle.colour.green)<<8) + int(currentTriangle.colour.blue);
         drawStrokeTriangle(t, colour);
     }
 }
