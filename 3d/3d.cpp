@@ -270,7 +270,7 @@ vector<Colour> loadMtl(string path){
         //Char 32 is space
         char space = char(32);
         string name = split(nameLine, space)[1];
-        cout << name << endl;
+        // cout << name << endl;
         getline(file, propertiesLine);
         string redString = split(propertiesLine, space)[1];
         string greenString = split(propertiesLine, space)[2];
@@ -345,11 +345,11 @@ vector<ModelTriangle> loadObj(){
             int c = stoi(items[3]) -1;
             ModelTriangle t = ModelTriangle(points.at(a), points.at(b), points.at(c), currentColour, objectName);
             triangles.push_back(t);
-            cout << t << endl;
+            // cout << t << endl;
         }
         if (file.eof() ) break;
     }
-    cout << "triangles, objects and materials loaded" << endl;
+    // cout << "triangles, objects and materials loaded" << endl;
     return triangles;
 }
 
@@ -384,6 +384,16 @@ void drawWireframes(){
         CanvasTriangle t = triangleToCanvas(currentTriangle);
         uint32_t colour = (255<<24) + (int(currentTriangle.colour.red)<<16) + (int(currentTriangle.colour.green)<<8) + int(currentTriangle.colour.blue);
         drawStrokeTriangle(t, colour);
+    }
+}
+
+void drawFilledTriangles(){
+    vector<ModelTriangle> triangles = loadObj();
+    for (int i = 0; i < triangles.size(); i++){
+        ModelTriangle currentTriangle = triangles.at(i);
+        CanvasTriangle t = triangleToCanvas(currentTriangle);
+        uint32_t colour = (255<<24) + (int(currentTriangle.colour.red)<<16) + (int(currentTriangle.colour.green)<<8) + int(currentTriangle.colour.blue);
+        drawFilledTriangle(t, colour);
     }
 }
 
@@ -426,6 +436,10 @@ void handleEvent(SDL_Event event)
         else if(event.key.keysym.sym == SDLK_w) {
             cout << "W" << endl;
             drawWireframes();
+        }
+        else if(event.key.keysym.sym == SDLK_p) {
+            cout << "P" << endl;
+            drawFilledTriangles();
         }
     }
     else if(event.type == SDL_MOUSEBUTTONDOWN) cout << "MOUSE CLICKED" << endl;

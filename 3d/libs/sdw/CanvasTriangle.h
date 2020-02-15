@@ -20,8 +20,7 @@ class CanvasTriangle
 
 
     CanvasTriangle()
-    {
-    }
+    {}
 
     CanvasTriangle(CanvasPoint v0, CanvasPoint v1, CanvasPoint v2)
     {
@@ -74,18 +73,17 @@ class CanvasTriangle
                 middle = b;
             }
         }
+        //Need to prevent div by zero
         middleIntersect.y = middle.y;
         topBottomGradient = (bottom.y-top.y)/(bottom.x-top.x);
         topBottomIntersection = top.y-top.x*(bottom.y - top.y)/(bottom.x-top.x);
         middleIntersect.x = (middleIntersect.y - topBottomIntersection) /topBottomGradient;
+        
         topMiddleGradient = (middle.y-top.y)/(middle.x-top.x);
         topMiddleIntersection = top.y-top.x*(middle.y - top.y)/(middle.x-top.x);
         middleBottomGradient = (bottom.y-middle.y)/(bottom.x-middle.x);
         middleBottomIntersection = middle.y-middle.x*(bottom.y - middle.y)/(bottom.x-middle.x);
     }
-
-    
-
 
 
 };
