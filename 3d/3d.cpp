@@ -94,22 +94,27 @@ void drawRandomTriangle(bool filled){
 
 void drawFilledTriangle(CanvasTriangle t){
     t.calculateTriangleMeta();
-    for (float y=t.top.y; y <t.middleIntersect.y; y++){
-        float startX = (y-t.topBottomIntersection) * (1/t.topBottomGradient);
-        float endX = (y - t.topMiddleIntersection) * (1/t.topMiddleGradient);
+    // cout << t.topStarts.size() << endl;
+    for (int i = 0; i < t.topStarts.size(); i++){
+        float startX = t.topStarts.at(i).x;
+        float endX = t.topEnds.at(i).x;
         if (startX > endX) {
             swap(startX, endX);
         }
+        int y = round(t.topStarts.at(i).y);
+        // cout << y << endl;
         for (float x = startX; x < endX; x++){
             window.setPixelColour(round(x), round(y), t.colour.getPacked());
         }
     }
-    for (float y=t.middleIntersect.y; y < t.bottom.y; y++){
-        float startX = (y-t.topBottomIntersection) * (1/t.topBottomGradient);
-        float endX = (y - t.middleBottomIntersection) * (1/t.middleBottomGradient);
+    for (int i = 0; i < t.bottomStarts.size(); i++){
+        float startX = t.bottomStarts.at(i).x;
+        float endX = t.bottomEnds.at(i).x;
         if (startX > endX) {
             swap(startX, endX);
         }
+        int y = round(t.bottomStarts.at(i).y);
+        // cout << y << endl;
         for (float x = startX; x < endX; x++){
             window.setPixelColour(round(x), round(y), t.colour.getPacked());
         }
@@ -370,7 +375,7 @@ CanvasTriangle triangleToCanvas(ModelTriangle t){
     CanvasPoint currentPoint(xImage, yImage);
     projection.vertices[i] = currentPoint;
   }
-  return currentTriangle;
+  return projection;
 }
 
 void drawWireframes(){

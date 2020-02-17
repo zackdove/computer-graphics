@@ -11,12 +11,10 @@ class CanvasTriangle
     CanvasPoint middle;
     CanvasPoint middleIntersect;
     CanvasPoint bottom;
-    float topBottomGradient;
-    float topBottomIntersection;
-    float topMiddleGradient;
-    float topMiddleIntersection;
-    float middleBottomGradient;
-    float middleBottomIntersection;
+    vector<CanvasPoint> topStarts;
+    vector<CanvasPoint> topEnds;
+    vector<CanvasPoint> bottomStarts;
+    vector<CanvasPoint> bottomEnds;
 
 
     CanvasTriangle()
@@ -75,18 +73,52 @@ class CanvasTriangle
         }
         //Need to prevent div by zero
         middleIntersect.y = middle.y;
-        topBottomGradient = (bottom.y-top.y)/(bottom.x-top.x);
-        topBottomIntersection = top.y-top.x*(bottom.y - top.y)/(bottom.x-top.x);
-        middleIntersect.x = (middleIntersect.y - topBottomIntersection) /topBottomGradient;
-        
-        topMiddleGradient = (middle.y-top.y)/(middle.x-top.x);
-        topMiddleIntersection = top.y-top.x*(middle.y - top.y)/(middle.x-top.x);
-        middleBottomGradient = (bottom.y-middle.y)/(bottom.x-middle.x);
-        middleBottomIntersection = middle.y-middle.x*(bottom.y - middle.y)/(bottom.x-middle.x);
+        // float topMiddleGradient;
+        // float topMiddleIntersection;
+        // float middleBottomGradient;
+        // float middleBottomIntersection;
+
+        if ( bottom.x-top.x == 0 ){
+            middleIntersect.x = top.x;
+        } else {
+            float topBottomGradient = (bottom.y-top.y)/(bottom.x-top.x);
+            float topBottomIntersection = top.y-top.x*(bottom.y - top.y)/(bottom.x-top.x);
+            middleIntersect.x = (middleIntersect.y - topBottomIntersection) /topBottomGradient;
+        }
+        int topHeight = middle.y - top.y;
+        topStarts = interpolatePoints(top, middle, topHeight+1);
+        // cout << topStarts.size() << endl;
+        topEnds = interpolatePoints(top, middleIntersect, topHeight+1);
+        int bottomHeight = bottom.y - middle.y;
+        bottomStarts = interpolatePoints(middle, bottom, bottomHeight+1);
+        bottomEnds = interpolatePoints(middleIntersect, bottom, bottomHeight+1);
+
+        // topMiddleGradient = (middle.y-top.y)/(middle.x-top.x);
+        // topMiddleIntersection = top.y-top.x*(middle.y - top.y)/(middle.x-top.x);
+        // middleBottomGradient = (bottom.y-middle.y)/(bottom.x-middle.x);
+        // middleBottomIntersection = middle.y-middle.x*(bottom.y - middle.y)/(bottom.x-middle.x);
+    }
+
+    vector<CanvasPoint> interpolatePoints(CanvasPoint start, CanvasPoint end, int steps){
+        vector<CanvasPoint> points;
+        for (int i=0; i<steps; i++){
+            CanvasPoint p;
+            if (steps == 1) steps = 2;
+            p.x = start.x+((end.x-start.x)*i/(steps-1));
+            p.y = start.y+((end.y-start.y)*i/(steps-1));
+            // cout << "R " << v.x << endl;
+            // cout << "G " << v.y << endl;
+            // cout << "B " << v.z << endl;
+            points.push_back(p);
+        }
+        return points;
     }
 
 
+
 };
+
+
 
 std::ostream& operator<<(std::ostream& os, const CanvasTriangle& triangle)
 {
