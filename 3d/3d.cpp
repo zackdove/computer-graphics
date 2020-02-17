@@ -19,10 +19,10 @@ using namespace glm;
 void draw();
 void update();
 void handleEvent(SDL_Event event);
-void drawLine(CanvasPoint from, CanvasPoint to, uint32_t colour);
-void drawStrokeTriangle(CanvasTriangle t, uint32_t colour);
+void drawLine(CanvasPoint from, CanvasPoint to, Colour colour);
+void drawStrokeTriangle(CanvasTriangle t, Colour colour);
 void drawRandomTriangle(bool filled);
-void drawFilledTriangle(CanvasTriangle t, uint32_t colour);
+void drawFilledTriangle(CanvasTriangle t, Colour colour);
 Image loadImage();
 void createTextureTriangle();
 
@@ -133,7 +133,7 @@ Image loadImage(){
     int newlinePosition = widthAndHeight.find("\n");
     int width = stoi(widthAndHeight.substr(0,spacePosition));
     int height = stoi(widthAndHeight.substr(spacePosition,newlinePosition));
-    vector<uint32_t> pixels;
+    vector<Colour> pixels;
     int numOfPixels = width * height;
     int red;
     int green;
@@ -142,7 +142,7 @@ Image loadImage(){
         red = file.get();
         green = file.get();
         blue = file.get();
-        uint32_t pixel = (255<<24) + (int(red)<<16) + (int(green)<<8) + int(blue);
+        Colour pixel = Colour(red, green, blue);
         pixels.push_back(pixel);
     }
     Image i = Image(width, height, pixels);
@@ -231,7 +231,7 @@ void createTextureTriangle(){
         // cout << width << endl;
         vector<CanvasPoint> row = interpolatePoints(textureStarts.at(y), textureEnds.at(y), width);
         for (int x=0; x<width; x++){
-            window.setPixelColour(starts.at(y).x+x, starts.at(y).y, i.getPixel(row.at(x).x, row.at(x).y));
+            window.setPixelColour(starts.at(y).x+x, starts.at(y).y, i.getPixel(row.at(x).x, row.at(x).y).getPacked());
         }
     }
     cout << "starting bottom triangle" << endl;
@@ -250,7 +250,7 @@ void createTextureTriangle(){
         vector<CanvasPoint> row = interpolatePoints(bottomTextureStarts.at(y), bottomTextureEnds.at(y), width);
         for (int x=0; x<width; x++){
             cout << "x: " << x << endl;
-            window.setPixelColour(bottomStarts.at(y).x+x, bottomStarts.at(y).y-1, i.getPixel(row.at(x).x, row.at(x).y));
+            window.setPixelColour(bottomStarts.at(y).x+x, bottomStarts.at(y).y-1, i.getPixel(row.at(x).x, row.at(x).y).getPacked());
         }
     }
 }
@@ -382,8 +382,7 @@ void drawWireframes(){
     for (int i = 0; i < triangles.size(); i++){
         ModelTriangle currentTriangle = triangles.at(i);
         CanvasTriangle t = triangleToCanvas(currentTriangle);
-        uint32_t colour = (255<<24) + (int(currentTriangle.colour.red)<<16) + (int(currentTriangle.colour.green)<<8) + int(currentTriangle.colour.blue);
-        drawStrokeTriangle(t, colour);
+        drawStrokeTriangle(t, currentTriangle.colour);
     }
 }
 

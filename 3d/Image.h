@@ -12,7 +12,7 @@ class Image
 
 
 
-    Image(int w, int h, vector<uint32_t> p)
+    Image(int w, int h, vector<Colour> p)
     {
       pixels = p;
       width = w;
