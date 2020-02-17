@@ -20,9 +20,9 @@ void draw();
 void update();
 void handleEvent(SDL_Event event);
 void drawLine(CanvasPoint from, CanvasPoint to, Colour colour);
-void drawStrokeTriangle(CanvasTriangle t, Colour colour);
+void drawStrokeTriangle(CanvasTriangle t);
 void drawRandomTriangle(bool filled);
-void drawFilledTriangle(CanvasTriangle t, Colour colour);
+void drawFilledTriangle(CanvasTriangle t);
 Image loadImage();
 void createTextureTriangle();
 
@@ -68,14 +68,13 @@ void drawLine(CanvasPoint from, CanvasPoint to, Colour colour){
     }
 }
 
-void drawStrokeTriangle(CanvasTriangle t, Colour colour){
-    drawLine(t.vertices[0], t.vertices[1], colour);
-    drawLine(t.vertices[0], t.vertices[2], colour);
-    drawLine(t.vertices[1], t.vertices[2], colour);
+void drawStrokeTriangle(CanvasTriangle t){
+    drawLine(t.vertices[0], t.vertices[1], t.colour);
+    drawLine(t.vertices[0], t.vertices[2], t.colour);
+    drawLine(t.vertices[1], t.vertices[2], t.colour);
 }
 
 void drawRandomTriangle(bool filled){
-
     int red = rand()%255;
     int green = rand()%255;
     int blue = rand()%255;
@@ -83,17 +82,17 @@ void drawRandomTriangle(bool filled){
     CanvasPoint a = CanvasPoint(rand()%WIDTH, rand()%HEIGHT);
     CanvasPoint b = CanvasPoint(rand()%WIDTH, rand()%HEIGHT);
     CanvasPoint c = CanvasPoint(rand()%WIDTH, rand()%HEIGHT);
-    CanvasTriangle t = CanvasTriangle(a, b, c);
+    CanvasTriangle t = CanvasTriangle(a, b, c, colour);
     if (filled){
-        drawStrokeTriangle(t, colour);
-        drawFilledTriangle(t, colour);
+        drawStrokeTriangle(t);
+        drawFilledTriangle(t);
     } else {
-        drawStrokeTriangle(t, colour);
+        drawStrokeTriangle(t);
     }
 }
 
 
-void drawFilledTriangle(CanvasTriangle t, Colour colour){
+void drawFilledTriangle(CanvasTriangle t){
     t.calculateTriangleMeta();
     for (float y=t.top.y; y <t.middleIntersect.y; y++){
         float startX = (y-t.topBottomIntersection) * (1/t.topBottomGradient);
@@ -102,7 +101,7 @@ void drawFilledTriangle(CanvasTriangle t, Colour colour){
             swap(startX, endX);
         }
         for (float x = startX; x < endX; x++){
-            window.setPixelColour(round(x), round(y), colour.getPacked());
+            window.setPixelColour(round(x), round(y), t.colour.getPacked());
         }
     }
     for (float y=t.middleIntersect.y; y < t.bottom.y; y++){
@@ -112,7 +111,7 @@ void drawFilledTriangle(CanvasTriangle t, Colour colour){
             swap(startX, endX);
         }
         for (float x = startX; x < endX; x++){
-            window.setPixelColour(round(x), round(y), colour.getPacked());
+            window.setPixelColour(round(x), round(y), t.colour.getPacked());
         }
     }
 }
@@ -166,22 +165,19 @@ void drawTrianglesForTexture(CanvasTriangle t){
     CanvasPoint bottomP = CanvasPoint(t.bottom.texturePoint);
     CanvasTriangle mainTriangle = CanvasTriangle(topP, middleP, bottomP);
     Colour colour = Colour(255, 255, 255);
-    drawFilledTriangle(mainTriangle, colour);
+    drawFilledTriangle(mainTriangle);
     //Draw two stroke triangles for halves
     CanvasPoint middleIntersectP = CanvasPoint(t.middleIntersect.texturePoint);
     //Top
     colour = Colour(0, 0, 255);
     CanvasTriangle topTriangle = CanvasTriangle(topP, middleP, middleIntersectP);
-    drawStrokeTriangle(topTriangle, colour);
+    drawStrokeTriangle(topTriangle);
     //Bottom
     colour = Colour(0, 255, 0);
     CanvasTriangle bottomTriangle = CanvasTriangle(bottomP, middleP, middleIntersectP);
-    drawStrokeTriangle(bottomTriangle, colour);
+    drawStrokeTriangle(bottomTriangle);
 
 }
-
-
-
 
 vector<CanvasPoint> interpolatePoints(CanvasPoint start, CanvasPoint end, int steps){
     vector<CanvasPoint> points;
@@ -219,7 +215,7 @@ void createTextureTriangle(){
     float ratio = (t.middle.y - t.top.y) / (t.bottom.y - t.top.y);
     t.middleIntersect.texturePoint.x = (t.bottom.texturePoint.x - t.top.texturePoint.x) * ratio + t.top.texturePoint.x;
     t.middleIntersect.texturePoint.y = (t.bottom.texturePoint.y - t.top.texturePoint.y) * ratio + t.top.texturePoint.y;
-    drawTrianglesForTexture(t);
+    // drawTrianglesForTexture(t);
     //Top triangle
     int height = t.middle.y-t.top.y;
     vector<CanvasPoint> starts = interpolatePoints(t.top, t.middle, height);
@@ -353,13 +349,13 @@ vector<ModelTriangle> loadObj(){
     return triangles;
 }
 
-
 CanvasTriangle triangleToCanvas(ModelTriangle t){
   //chnage this to something more meaningful
   vec3 camera(0,0, 10);
   float focalLength = 400;
   // change this to a for loop
-  CanvasTriangle currentTriangle;
+  CanvasTriangle projection;
+  projection.colour = t.colour;
   for (int i = 0; i < 3; i++){
     float xWorld = t.vertices[i].x;
     float yWorld = t.vertices[i].y;
@@ -372,7 +368,7 @@ CanvasTriangle triangleToCanvas(ModelTriangle t){
     int xImage = (xDistanceFromCamera*ratio) + WIDTH/2;
     int yImage = ((1-yDistanceFromCamera)*ratio) + HEIGHT/2;
     CanvasPoint currentPoint(xImage, yImage);
-    currentTriangle.vertices[i] = currentPoint;
+    projection.vertices[i] = currentPoint;
   }
   return currentTriangle;
 }
@@ -382,7 +378,7 @@ void drawWireframes(){
     for (int i = 0; i < triangles.size(); i++){
         ModelTriangle currentTriangle = triangles.at(i);
         CanvasTriangle t = triangleToCanvas(currentTriangle);
-        drawStrokeTriangle(t, currentTriangle.colour);
+        drawStrokeTriangle(t);
     }
 }
 
@@ -391,10 +387,9 @@ void drawFilledTriangles(){
     for (int i = 0; i < triangles.size(); i++){
         ModelTriangle currentTriangle = triangles.at(i);
         CanvasTriangle t = triangleToCanvas(currentTriangle);
-        drawFilledTriangle(t, currentTriangle.colour);
+        drawFilledTriangle(t);
     }
 }
-
 
 void handleEvent(SDL_Event event)
 {
