@@ -55,7 +55,7 @@ void update()
 }
 
 
-void drawLine(CanvasPoint from, CanvasPoint to, uint32_t colour){
+void drawLine(CanvasPoint from, CanvasPoint to, Colour colour){
     float xDiff = to.x - from.x;
     float yDiff = to.y - from.y;
     float numberOfSteps = std::max(abs(xDiff), abs(yDiff));
@@ -64,11 +64,11 @@ void drawLine(CanvasPoint from, CanvasPoint to, uint32_t colour){
     for (float i=0.0; i<numberOfSteps; i++) {
         float x = from.x + (xStepSize*i);
         float y = from.y + (yStepSize*i);
-        window.setPixelColour(round(x), round(y), colour);
+        window.setPixelColour(round(x), round(y), colour.getPacked());
     }
 }
 
-void drawStrokeTriangle(CanvasTriangle t, uint32_t colour){
+void drawStrokeTriangle(CanvasTriangle t, Colour colour){
     drawLine(t.vertices[0], t.vertices[1], colour);
     drawLine(t.vertices[0], t.vertices[2], colour);
     drawLine(t.vertices[1], t.vertices[2], colour);
@@ -76,10 +76,10 @@ void drawStrokeTriangle(CanvasTriangle t, uint32_t colour){
 
 void drawRandomTriangle(bool filled){
 
-    float red = rand()%255;
-    float green = rand()%255;
-    float blue = rand()%255;
-    uint32_t colour = (255<<24) + (int(red)<<16) + (int(green)<<8) + int(blue);
+    int red = rand()%255;
+    int green = rand()%255;
+    int blue = rand()%255;
+    Colour colour = Colour(red, green, blue);
     CanvasPoint a = CanvasPoint(rand()%WIDTH, rand()%HEIGHT);
     CanvasPoint b = CanvasPoint(rand()%WIDTH, rand()%HEIGHT);
     CanvasPoint c = CanvasPoint(rand()%WIDTH, rand()%HEIGHT);
@@ -93,7 +93,7 @@ void drawRandomTriangle(bool filled){
 }
 
 
-void drawFilledTriangle(CanvasTriangle t, uint32_t colour){
+void drawFilledTriangle(CanvasTriangle t, Colour colour){
     t.calculateTriangleMeta();
     for (float y=t.top.y; y <t.middleIntersect.y; y++){
         float startX = (y-t.topBottomIntersection) * (1/t.topBottomGradient);
@@ -102,7 +102,7 @@ void drawFilledTriangle(CanvasTriangle t, uint32_t colour){
             swap(startX, endX);
         }
         for (float x = startX; x < endX; x++){
-            window.setPixelColour(round(x), round(y), colour);
+            window.setPixelColour(round(x), round(y), colour.getPacked());
         }
     }
     for (float y=t.middleIntersect.y; y < t.bottom.y; y++){
@@ -112,7 +112,7 @@ void drawFilledTriangle(CanvasTriangle t, uint32_t colour){
             swap(startX, endX);
         }
         for (float x = startX; x < endX; x++){
-            window.setPixelColour(round(x), round(y), colour);
+            window.setPixelColour(round(x), round(y), colour.getPacked());
         }
     }
 }
@@ -154,7 +154,7 @@ void displayImage(){
     Image image = loadImage();
     for (int y=0; y<image.height; y++){
         for (int x=0; x<image.width; x++){
-            window.setPixelColour(x, y, image.pixels.at((y*image.width)+x));
+            window.setPixelColour(x, y, image.pixels.at((y*image.width)+x).getPacked());
         }
     }
 }
@@ -165,16 +165,16 @@ void drawTrianglesForTexture(CanvasTriangle t){
     CanvasPoint middleP = CanvasPoint(t.middle.texturePoint);
     CanvasPoint bottomP = CanvasPoint(t.bottom.texturePoint);
     CanvasTriangle mainTriangle = CanvasTriangle(topP, middleP, bottomP);
-    uint32_t colour = (255<<24) + (int(255)<<16) + (int(255)<<8) + int(255);
+    Colour colour = Colour(255, 255, 255);
     drawFilledTriangle(mainTriangle, colour);
     //Draw two stroke triangles for halves
     CanvasPoint middleIntersectP = CanvasPoint(t.middleIntersect.texturePoint);
     //Top
-    colour = (255<<24) + (int(0)<<16) + (int(0)<<8) + int(255);
+    colour = Colour(0, 0, 255);
     CanvasTriangle topTriangle = CanvasTriangle(topP, middleP, middleIntersectP);
     drawStrokeTriangle(topTriangle, colour);
     //Bottom
-    colour = (255<<24) + (int(0)<<16) + (int(255)<<8) + int(0);
+    colour = Colour(0, 255, 0);
     CanvasTriangle bottomTriangle = CanvasTriangle(bottomP, middleP, middleIntersectP);
     drawStrokeTriangle(bottomTriangle, colour);
 
@@ -392,8 +392,7 @@ void drawFilledTriangles(){
     for (int i = 0; i < triangles.size(); i++){
         ModelTriangle currentTriangle = triangles.at(i);
         CanvasTriangle t = triangleToCanvas(currentTriangle);
-        uint32_t colour = (255<<24) + (int(currentTriangle.colour.red)<<16) + (int(currentTriangle.colour.green)<<8) + int(currentTriangle.colour.blue);
-        drawFilledTriangle(t, colour);
+        drawFilledTriangle(t, currentTriangle.colour);
     }
 }
 

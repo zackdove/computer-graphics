@@ -8,7 +8,7 @@ class Image
   public:
       int width;
       int height;
-      vector<uint32_t> pixels;
+      vector<Colour> pixels;
 
 
 
@@ -19,7 +19,7 @@ class Image
       height = h;
     }
 
-    uint32_t getPixel(int x, int y){
+    Colour getPixel(int x, int y){
         return (pixels.at((y*width)+x));
     }
 
