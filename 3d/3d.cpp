@@ -25,12 +25,13 @@ void drawRandomTriangle(bool filled);
 void drawFilledTriangle(CanvasTriangle t);
 Image loadImage();
 void createTextureTriangle();
+vector<float> getEmptyZArray();
+vector<ModelTriangle> loadObj(string path);
 
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 
 int main(int argc, char* argv[])
 {
-
     SDL_Event event;
     while(true)
     {
@@ -74,25 +75,9 @@ void drawStrokeTriangle(CanvasTriangle t){
     drawLine(t.vertices[1], t.vertices[2], t.colour);
 }
 
-void drawRandomTriangle(bool filled){
-    int red = rand()%255;
-    int green = rand()%255;
-    int blue = rand()%255;
-    Colour colour = Colour(red, green, blue);
-    CanvasPoint a = CanvasPoint(rand()%WIDTH, rand()%HEIGHT);
-    CanvasPoint b = CanvasPoint(rand()%WIDTH, rand()%HEIGHT);
-    CanvasPoint c = CanvasPoint(rand()%WIDTH, rand()%HEIGHT);
-    CanvasTriangle t = CanvasTriangle(a, b, c, colour);
-    if (filled){
-        drawStrokeTriangle(t);
-        drawFilledTriangle(t);
-    } else {
-        drawStrokeTriangle(t);
-    }
-}
 
 
-void drawFilledTriangle(CanvasTriangle t){
+void drawFilledTriangle(CanvasTriangle t, vector<float> zArray){
     t.calculateTriangleMeta();
     // cout << t.topStarts.size() << endl;
     for (int i = 0; i < t.topStarts.size(); i++){
@@ -102,7 +87,7 @@ void drawFilledTriangle(CanvasTriangle t){
             swap(startX, endX);
         }
         int y = round(t.topStarts.at(i).y);
-        // cout << y << endl;
+        cout << "( " << y << ", " << endX << " )" << endl;
         for (float x = startX; x < endX; x++){
             window.setPixelColour(round(x), round(y), t.colour.getPacked());
         }
@@ -163,26 +148,6 @@ void displayImage(){
     }
 }
 
-void drawTrianglesForTexture(CanvasTriangle t){
-    //Draw fill triangle
-    CanvasPoint topP = CanvasPoint(t.top.texturePoint);
-    CanvasPoint middleP = CanvasPoint(t.middle.texturePoint);
-    CanvasPoint bottomP = CanvasPoint(t.bottom.texturePoint);
-    CanvasTriangle mainTriangle = CanvasTriangle(topP, middleP, bottomP);
-    Colour colour = Colour(255, 255, 255);
-    drawFilledTriangle(mainTriangle);
-    //Draw two stroke triangles for halves
-    CanvasPoint middleIntersectP = CanvasPoint(t.middleIntersect.texturePoint);
-    //Top
-    colour = Colour(0, 0, 255);
-    CanvasTriangle topTriangle = CanvasTriangle(topP, middleP, middleIntersectP);
-    drawStrokeTriangle(topTriangle);
-    //Bottom
-    colour = Colour(0, 255, 0);
-    CanvasTriangle bottomTriangle = CanvasTriangle(bottomP, middleP, middleIntersectP);
-    drawStrokeTriangle(bottomTriangle);
-
-}
 
 vector<CanvasPoint> interpolatePoints(CanvasPoint start, CanvasPoint end, int steps){
     vector<CanvasPoint> points;
@@ -296,9 +261,9 @@ Colour getColourByName(vector<Colour> colours, string name){
     return Colour();
 }
 
-vector<ModelTriangle> loadObj(){
+vector<ModelTriangle> loadObj(string path){
     ifstream file;
-    file.open("cornell-box/cornell-box.obj");
+    file.open(path);
     char space = char(32);
     vector<string> materialFileNames;
     vector<vec3> points;
@@ -372,14 +337,13 @@ CanvasTriangle triangleToCanvas(ModelTriangle t){
     // change to int?
     int xImage = (xDistanceFromCamera*ratio) + WIDTH/2;
     int yImage = ((1-yDistanceFromCamera)*ratio) + HEIGHT/2;
-    CanvasPoint currentPoint(xImage, yImage);
+    CanvasPoint currentPoint(xImage, yImage, zDistanceFromCamera);
     projection.vertices[i] = currentPoint;
   }
   return projection;
 }
 
-void drawWireframes(){
-    vector<ModelTriangle> triangles = loadObj();
+void drawWireframes(vector<ModelTriangle> triangles){
     for (int i = 0; i < triangles.size(); i++){
         ModelTriangle currentTriangle = triangles.at(i);
         CanvasTriangle t = triangleToCanvas(currentTriangle);
@@ -387,13 +351,23 @@ void drawWireframes(){
     }
 }
 
-void drawFilledTriangles(){
-    vector<ModelTriangle> triangles = loadObj();
+void drawModel(vector<ModelTriangle> triangles){
+    vector<float> zArray = getEmptyZArray();
     for (int i = 0; i < triangles.size(); i++){
         ModelTriangle currentTriangle = triangles.at(i);
         CanvasTriangle t = triangleToCanvas(currentTriangle);
-        drawFilledTriangle(t);
+        drawFilledTriangle(t, zArray);
     }
+}
+
+
+
+vector<float> getEmptyZArray(){
+    vector<float> a;
+    for (int i = 0; i < WIDTH*HEIGHT; i++){
+        a.push_back(std::numeric_limits<float>::infinity());
+    }
+    return a;
 }
 
 void handleEvent(SDL_Event event)
@@ -403,14 +377,6 @@ void handleEvent(SDL_Event event)
         else if(event.key.keysym.sym == SDLK_RIGHT) cout << "RIGHT" << endl;
         else if(event.key.keysym.sym == SDLK_UP) cout << "UP" << endl;
         else if(event.key.keysym.sym == SDLK_DOWN) cout << "DOWN" << endl;
-        else if(event.key.keysym.sym == SDLK_u) {
-            cout << "U" << endl;
-            drawRandomTriangle(false);
-        }
-        else if(event.key.keysym.sym == SDLK_f) {
-            cout << "F" << endl;
-            drawRandomTriangle(true);
-        }
         else if(event.key.keysym.sym == SDLK_i) {
             cout << "I" << endl;
             displayImage();
@@ -429,15 +395,15 @@ void handleEvent(SDL_Event event)
         }
         else if(event.key.keysym.sym == SDLK_o) {
             cout << "O" << endl;
-            loadObj();
+            loadObj("cornell-box/cornell-box.mtl");
         }
         else if(event.key.keysym.sym == SDLK_w) {
             cout << "W" << endl;
-            drawWireframes();
+            drawWireframes(loadObj("cornell-box/cornell-box.obj"));
         }
         else if(event.key.keysym.sym == SDLK_p) {
             cout << "P" << endl;
-            drawFilledTriangles();
+            drawModel(loadObj("cornell-box/cornell-box.obj"));
         }
     }
     else if(event.type == SDL_MOUSEBUTTONDOWN) cout << "MOUSE CLICKED" << endl;

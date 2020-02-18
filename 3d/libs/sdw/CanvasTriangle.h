@@ -106,6 +106,7 @@ class CanvasTriangle
             if (steps == 1) steps = 2;
             p.x = start.x+((end.x-start.x)*i/(steps-1));
             p.y = start.y+((end.y-start.y)*i/(steps-1));
+            p.depth = start.depth+((end.depth-start.depth)*i/(steps-1));
             // cout << "R " << v.x << endl;
             // cout << "G " << v.y << endl;
             // cout << "B " << v.z << endl;
