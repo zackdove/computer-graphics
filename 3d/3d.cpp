@@ -85,26 +85,21 @@ void drawFilledTriangle(CanvasTriangle t, vector<float> zArray){
         drawRow(t.topStarts.at(i), t.topEnds.at(i), t.colour, zArray);
     }
     for (int i = 0; i < t.bottomStarts.size(); i++){
-        float startX = t.bottomStarts.at(i).x;
-        float endX = t.bottomEnds.at(i).x;
-        if (startX > endX) {
-            swap(startX, endX);
-        }
-        int y = round(t.bottomStarts.at(i).y);
-        // cout << y << endl;
-        for (float x = startX; x < endX; x++){
-            window.setPixelColour(round(x), round(y), t.colour.getPacked());
-        }
+        drawRow(t.bottomStarts.at(i), t.bottomEnds.at(i), t.colour, zArray);
     }
 }
 
 void drawRow(CanvasPoint from, CanvasPoint to, Colour colour, vector<float> zArray){
     if (from.x > to.x) swap(to, from);
     int y = round(from.y);
-    int rowWidth = round(to.x-from.x)+2;
+    int rowWidth = round(to.x-from.x);
+    float fromDepth = (from.depth);
+    float toDepth = (to.depth);
     for (int x = 0; x < rowWidth; x++){
-        float depth = 1/(from.depth+((to.depth-from.depth)*x/(rowWidth-1)));
-        if (depth > zArray.at(y*WIDTH + from.x + x)){
+        float depth = -1/(fromDepth+((toDepth-fromDepth)*x/(rowWidth-1)));
+        cout << "z array: " << zArray.at(y*WIDTH + from.x + x) << " depth: " << depth << endl;
+        if (depth < zArray.at(y*WIDTH + from.x + x)){
+            zArray.insert(y*WIDTH + from.x + x, depth);
             window.setPixelColour(round(from.x + x), y, colour.getPacked());
         }
     }

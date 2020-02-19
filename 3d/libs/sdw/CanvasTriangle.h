@@ -85,6 +85,7 @@ class CanvasTriangle
             float topBottomIntersection = top.y-top.x*(bottom.y - top.y)/(bottom.x-top.x);
             middleIntersect.x = (middleIntersect.y - topBottomIntersection) /topBottomGradient;
         }
+        middleIntersect.depth =  (top.depth+bottom.depth)/2;
         int topHeight = middle.y - top.y;
         topStarts = interpolatePoints(top, middle, topHeight+1);
         // cout << topStarts.size() << endl;
