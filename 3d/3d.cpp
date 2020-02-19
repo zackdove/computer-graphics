@@ -28,18 +28,26 @@ void createTextureTriangle();
 vector<float> getEmptyZArray();
 vector<ModelTriangle> loadObj(string path);
 void drawRow(CanvasPoint from, CanvasPoint to, Colour colour, vector<float> &zArray);
+void drawModel(vector<ModelTriangle> triangles);
 
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
+vec3 camera = vec3(0,0,10);
 
 int main(int argc, char* argv[])
 {
+    vector<ModelTriangle> model = loadObj("cornell-box/cornell-box.obj");
+
     SDL_Event event;
     while(true)
     {
         // We MUST poll for events - otherwise the window will freeze !
-        if(window.pollForInputEvents(&event)) handleEvent(event);
+        if(window.pollForInputEvents(&event)) {
+            handleEvent(event);
+        }
         update();
         draw();
+        window.clearPixels();
+        drawModel(model);
         // Need to render the frame at the end, or nothing actually gets shown on the screen !
         window.renderFrame();
     }
@@ -47,7 +55,6 @@ int main(int argc, char* argv[])
 
 void draw()
 {
-
 
 }
 
@@ -96,18 +103,20 @@ void drawRow(CanvasPoint from, CanvasPoint to, Colour colour, vector<float> &zAr
     // float fromDepth = (from.depth);
     // float toDepth = (to.depth);
     for (int x = 0; x < rowWidth; x++){
-        if (rowWidth == 1) rowWidth = 2;
-        float depth = -1/(from.depth+((to.depth-from.depth)*x/(rowWidth-1)));
-        // float depth = -1/from.depth;
-        if (depth > zArray.at(y*WIDTH + from.x + x)){
-            zArray.at(y*WIDTH + from.x + x) = depth;
-            window.setPixelColour(round(from.x + x), y, colour.getPacked());
-        } else {
-            cout << "z array: " << zArray.at(y*WIDTH + from.x + x) << " depth: " << depth << endl;
-            // cout << "pixel is behind " << from.x+x << ",  " << y << endl;
-            // window.setPixelColour(round(from.x + x), y, Colour(255, 255, 255).getPacked());
+        if ((y < HEIGHT) && (y >= 0)  && ((from.x+x) >=0) && ((from.x+x) < WIDTH-1) ){
+            if (rowWidth == 1) rowWidth = 2;
+            float depth = -1/(from.depth+((to.depth-from.depth)*x/(rowWidth-1)));
+            // float depth = -1/from.depth;
+            if (depth > zArray.at(y*WIDTH + from.x + x)){
+                zArray.at(y*WIDTH + from.x + x) = depth;
+                window.setPixelColour(round(from.x + x), y, colour.getPacked());
+            } else {
+                // cout << "z array: " << zArray.at(y*WIDTH + from.x + x) << " depth: " << depth << endl;
+                // cout << "pixel is behind " << from.x+x << ",  " << y << endl;
+                // window.setPixelColour(round(from.x + x), y, Colour(255, 255, 255).getPacked());
+            }
+            // cout << "z array: " << zArray.at(y*WIDTH + from.x + x) << " depth: " << depth << endl;
         }
-        // cout << "z array: " << zArray.at(y*WIDTH + from.x + x) << " depth: " << depth << endl;
     }
 }
 
@@ -342,7 +351,6 @@ vector<ModelTriangle> loadObj(string path){
 
 CanvasTriangle triangleToCanvas(ModelTriangle t){
   //chnage this to something more meaningful
-  vec3 camera(0,0, 10);
   float focalLength = 400;
   // change this to a for loop
   CanvasTriangle projection;
@@ -394,10 +402,19 @@ vector<float> getEmptyZArray(){
 void handleEvent(SDL_Event event)
 {
     if(event.type == SDL_KEYDOWN) {
-        if(event.key.keysym.sym == SDLK_LEFT) cout << "LEFT" << endl;
-        else if(event.key.keysym.sym == SDLK_RIGHT) cout << "RIGHT" << endl;
-        else if(event.key.keysym.sym == SDLK_UP) cout << "UP" << endl;
-        else if(event.key.keysym.sym == SDLK_DOWN) cout << "DOWN" << endl;
+        if(event.key.keysym.sym == SDLK_LEFT) {
+            cout << "LEFT" << endl;
+            camera.x += 1;
+        }
+        else if(event.key.keysym.sym == SDLK_RIGHT) {
+            camera.x -= 1;
+        }
+        else if(event.key.keysym.sym == SDLK_UP) {
+            camera.y -= 1;
+        }
+        else if(event.key.keysym.sym == SDLK_DOWN) {
+            camera.y += 1;
+        }
         else if(event.key.keysym.sym == SDLK_i) {
             cout << "I" << endl;
             displayImage();
