@@ -27,6 +27,7 @@ Image loadImage();
 void createTextureTriangle();
 vector<float> getEmptyZArray();
 vector<ModelTriangle> loadObj(string path);
+void drawRow(CanvasPoint from, CanvasPoint to, Colour colour, vector<float> zArray);
 
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 
@@ -81,16 +82,7 @@ void drawFilledTriangle(CanvasTriangle t, vector<float> zArray){
     t.calculateTriangleMeta();
     // cout << t.topStarts.size() << endl;
     for (int i = 0; i < t.topStarts.size(); i++){
-        float startX = t.topStarts.at(i).x;
-        float endX = t.topEnds.at(i).x;
-        if (startX > endX) {
-            swap(startX, endX);
-        }
-        int y = round(t.topStarts.at(i).y);
-        cout << "( " << y << ", " << endX << " )" << endl;
-        for (float x = startX; x < endX; x++){
-            window.setPixelColour(round(x), round(y), t.colour.getPacked());
-        }
+        drawRow(t.topStarts.at(i), t.topEnds.at(i), t.colour, zArray);
     }
     for (int i = 0; i < t.bottomStarts.size(); i++){
         float startX = t.bottomStarts.at(i).x;
@@ -104,6 +96,34 @@ void drawFilledTriangle(CanvasTriangle t, vector<float> zArray){
             window.setPixelColour(round(x), round(y), t.colour.getPacked());
         }
     }
+}
+
+void drawRow(CanvasPoint from, CanvasPoint to, Colour colour, vector<float> zArray){
+    if (from.x > to.x) swap(to, from);
+    int y = round(from.y);
+    int rowWidth = round(to.x-from.x)+2;
+    for (int x = 0; x < rowWidth; x++){
+        float depth = 1/(from.depth+((to.depth-from.depth)*x/(rowWidth-1)));
+        if (depth > zArray.at(y*WIDTH + from.x + x)){
+            window.setPixelColour(round(from.x + x), y, colour.getPacked());
+        }
+    }
+}
+
+vector<CanvasPoint> interpolateRow(CanvasPoint start, CanvasPoint end, int steps){
+    vector<CanvasPoint> points;
+    for (int i=0; i<steps; i++){
+        CanvasPoint p;
+        if (steps == 1) steps = 2;
+        p.x = start.x+((end.x-start.x)*i/(steps-1));
+        p.y = start.y+((end.y-start.y)*i/(steps-1));
+        p.depth = start.depth+((end.depth-start.depth)*i/(steps-1));
+        // cout << "R " << v.x << endl;
+        // cout << "G " << v.y << endl;
+        // cout << "B " << v.z << endl;
+        points.push_back(p);
+    }
+    return points;
 }
 
 
