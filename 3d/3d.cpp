@@ -13,7 +13,7 @@
 using namespace std;
 using namespace glm;
 
-#define WIDTH 720
+#define WIDTH 700
 #define HEIGHT 600
 
 void draw();
@@ -22,12 +22,12 @@ void handleEvent(SDL_Event event);
 void drawLine(CanvasPoint from, CanvasPoint to, Colour colour);
 void drawStrokeTriangle(CanvasTriangle t);
 void drawRandomTriangle(bool filled);
-void drawFilledTriangle(CanvasTriangle t);
+void drawFilledTriangle(CanvasTriangle t, vector<float> &zArray);
 Image loadImage();
 void createTextureTriangle();
 vector<float> getEmptyZArray();
 vector<ModelTriangle> loadObj(string path);
-void drawRow(CanvasPoint from, CanvasPoint to, Colour colour, vector<float> zArray);
+void drawRow(CanvasPoint from, CanvasPoint to, Colour colour, vector<float> &zArray);
 
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 
@@ -78,7 +78,7 @@ void drawStrokeTriangle(CanvasTriangle t){
 
 
 
-void drawFilledTriangle(CanvasTriangle t, vector<float> zArray){
+void drawFilledTriangle(CanvasTriangle t, vector<float> &zArray){
     t.calculateTriangleMeta();
     // cout << t.topStarts.size() << endl;
     for (int i = 0; i < t.topStarts.size(); i++){
@@ -89,19 +89,25 @@ void drawFilledTriangle(CanvasTriangle t, vector<float> zArray){
     }
 }
 
-void drawRow(CanvasPoint from, CanvasPoint to, Colour colour, vector<float> zArray){
+void drawRow(CanvasPoint from, CanvasPoint to, Colour colour, vector<float> &zArray){
     if (from.x > to.x) swap(to, from);
     int y = round(from.y);
     int rowWidth = round(to.x-from.x);
-    float fromDepth = (from.depth);
-    float toDepth = (to.depth);
+    // float fromDepth = (from.depth);
+    // float toDepth = (to.depth);
     for (int x = 0; x < rowWidth; x++){
-        float depth = -1/(fromDepth+((toDepth-fromDepth)*x/(rowWidth-1)));
-        cout << "z array: " << zArray.at(y*WIDTH + from.x + x) << " depth: " << depth << endl;
-        if (depth < zArray.at(y*WIDTH + from.x + x)){
-            zArray.insert(y*WIDTH + from.x + x, depth);
+        if (rowWidth == 1) rowWidth = 2;
+        float depth = -1/(from.depth+((to.depth-from.depth)*x/(rowWidth-1)));
+        // float depth = -1/from.depth;
+        if (depth > zArray.at(y*WIDTH + from.x + x)){
+            zArray.at(y*WIDTH + from.x + x) = depth;
             window.setPixelColour(round(from.x + x), y, colour.getPacked());
+        } else {
+            cout << "z array: " << zArray.at(y*WIDTH + from.x + x) << " depth: " << depth << endl;
+            // cout << "pixel is behind " << from.x+x << ",  " << y << endl;
+            // window.setPixelColour(round(from.x + x), y, Colour(255, 255, 255).getPacked());
         }
+        // cout << "z array: " << zArray.at(y*WIDTH + from.x + x) << " depth: " << depth << endl;
     }
 }
 
@@ -380,7 +386,7 @@ void drawModel(vector<ModelTriangle> triangles){
 vector<float> getEmptyZArray(){
     vector<float> a;
     for (int i = 0; i < WIDTH*HEIGHT; i++){
-        a.push_back(std::numeric_limits<float>::infinity());
+        a.push_back(-std::numeric_limits<float>::infinity());
     }
     return a;
 }
