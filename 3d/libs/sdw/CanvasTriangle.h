@@ -83,14 +83,22 @@ class CanvasTriangle
         } else {
             float topBottomGradient = (bottom.y-top.y)/(bottom.x-top.x);
             float topBottomIntersection = top.y-top.x*(bottom.y - top.y)/(bottom.x-top.x);
-            middleIntersect.x = (middleIntersect.y - topBottomIntersection) /topBottomGradient;
+            if (topBottomGradient == 0){
+                middleIntersect.x = (bottom.x + top.x)/2;
+            } else {
+                middleIntersect.x = (middleIntersect.y - topBottomIntersection) /topBottomGradient;
+            }
         }
         if ( bottom.depth - top.depth == 0){
             middleIntersect.depth = top.depth;
         } else {
             float topBottomGradient = (bottom.y-top.y)/(bottom.depth-top.depth);
             float topBottomIntersection = top.y-top.depth*(bottom.y - top.y)/(bottom.depth-top.depth);
-            middleIntersect.depth = (middleIntersect.y - topBottomIntersection) /topBottomGradient;
+            if (topBottomGradient == 0){
+                middleIntersect.depth = (top.depth+bottom.depth)/2;
+            } else {
+                middleIntersect.depth = (middleIntersect.y - topBottomIntersection) /topBottomGradient;
+            }
         }
         int topHeight = middle.y - top.y;
         topStarts = interpolatePoints(top, middle, topHeight+1);

@@ -10,11 +10,14 @@
 #include <math.h>
 #include "threeDPoint.h"
 
+
 using namespace std;
 using namespace glm;
 
 #define WIDTH 700
 #define HEIGHT 600
+
+#define PI 3.14159265
 
 void draw();
 void update();
@@ -29,9 +32,13 @@ vector<float> getEmptyZArray();
 vector<ModelTriangle> loadObj(string path);
 void drawRow(CanvasPoint from, CanvasPoint to, Colour colour, vector<float> &zArray);
 void drawModel(vector<ModelTriangle> triangles);
+void printMat3(mat3 m);
 
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
-vec3 camera = vec3(0,0,10);
+vec3 cameraPos = vec3(0,0,10);
+mat3 cameraOrientation = mat3(  1, 0, 0,
+                                0, 1, 0,
+                                0, 0, 1);
 
 int main(int argc, char* argv[])
 {
@@ -350,26 +357,22 @@ vector<ModelTriangle> loadObj(string path){
 }
 
 CanvasTriangle triangleToCanvas(ModelTriangle t){
-  //chnage this to something more meaningful
-  float focalLength = 400;
-  // change this to a for loop
-  CanvasTriangle projection;
-  projection.colour = t.colour;
-  for (int i = 0; i < 3; i++){
-    float xWorld = t.vertices[i].x;
-    float yWorld = t.vertices[i].y;
-    float zWorld = t.vertices[i].z;
-    float xDistanceFromCamera = xWorld - camera.x;
-    float yDistanceFromCamera = yWorld -camera.y;
-    float zDistanceFromCamera = zWorld - camera.z;
-    float ratio = focalLength/ -zDistanceFromCamera;
-    // change to int?
-    int xImage = (xDistanceFromCamera*ratio) + WIDTH/2;
-    int yImage = ((1-yDistanceFromCamera)*ratio) + HEIGHT/2;
-    CanvasPoint currentPoint(xImage, yImage, zDistanceFromCamera);
-    projection.vertices[i] = currentPoint;
-  }
-  return projection;
+    //chnage this to something more meaningful
+    float focalLength = 400;
+    // change this to a for loop
+    CanvasTriangle projection;
+    projection.colour = t.colour;
+    for (int i = 0; i < 3; i++){
+        vec3 cameraToVertex = t.vertices[i] - cameraPos;
+        vec3 adjustedVector = cameraToVertex * cameraOrientation;
+        float ratio = focalLength/ -cameraToVertex.z;
+        // change to int?
+        int xImage = (adjustedVector.x*ratio) + WIDTH/2;
+        int yImage = ((1-adjustedVector.y)*ratio) + HEIGHT/2;
+        CanvasPoint currentPoint(xImage, yImage, adjustedVector.z);
+        projection.vertices[i] = currentPoint;
+    }
+    return projection;
 }
 
 void drawWireframes(vector<ModelTriangle> triangles){
@@ -399,45 +402,103 @@ vector<float> getEmptyZArray(){
     return a;
 }
 
+//In radians
+void rotateInX(float a){
+    mat3 m = mat3(1,      0,       0,
+                  0, cos(a), -sin(a),
+                  0, sin(a), cos(a));
+    cameraOrientation = cameraOrientation * m;
+}
+
+void rotateInY(float a){
+    mat3 m = mat3(cos(a),  0, sin(a),
+                  0,       1,      0,
+                  -sin(a), 0, cos(a));
+    cameraOrientation = cameraOrientation * m;
+}
+
+void rotateInZ(float a){
+    mat3 m = mat3(  cos(a), -sin(a), 0,
+                    sin(a), cos(a), 0,
+                    0, 0, 1);
+    cameraOrientation = cameraOrientation * m;
+}
+
+void lookAt(vec3 p){
+    vec3 forward = normalize(cameraPos-p);
+    vec3 right = normalize(cross(vec3(0, 1, 0), forward));
+    vec3 up = normalize(cross(forward, right));
+    printMat3(cameraOrientation);
+    cameraOrientation = mat3(   right.x, up.x, forward.x,
+                                right.y, up.y, forward.y ,
+                                right.z, up.z, forward.z);
+    printMat3(cameraOrientation);
+}
+
+void printMat3(mat3 m){
+    for (int y =0; y<3;y++){
+        cout << "(" << m[y][0] << "," << m[y][1] << "," << m[y][2] << ")" << endl;
+    }
+}
+
 void handleEvent(SDL_Event event)
 {
     if(event.type == SDL_KEYDOWN) {
         if(event.key.keysym.sym == SDLK_LEFT) {
-            cout << "LEFT" << endl;
-            camera.x += 1;
+            cameraPos.x += 1;
         }
         else if(event.key.keysym.sym == SDLK_RIGHT) {
-            camera.x -= 1;
+            cameraPos.x -= 1;
         }
         else if(event.key.keysym.sym == SDLK_UP) {
-            camera.y -= 1;
+            cameraPos.y -= 1;
         }
         else if(event.key.keysym.sym == SDLK_DOWN) {
-            camera.y += 1;
+            cameraPos.y += 1;
         }
-        else if(event.key.keysym.sym == SDLK_i) {
-            cout << "I" << endl;
-            displayImage();
+        else if(event.key.keysym.sym == SDLK_RIGHTBRACKET) {
+            cameraPos.z += 1;
         }
-        else if(event.key.keysym.sym == SDLK_t) {
-            cout << "T" << endl;
-            createTextureTriangle();
+        else if(event.key.keysym.sym == SDLK_LEFTBRACKET) {
+            cameraPos.z -= 1;
         }
         else if(event.key.keysym.sym == SDLK_c) {
             cout << "C" << endl;
             window.clearPixels();
         }
-        else if(event.key.keysym.sym == SDLK_m) {
-            cout << "M" << endl;
-            loadMtl("cornell-box/cornell-box.mtl");
-        }
-        else if(event.key.keysym.sym == SDLK_o) {
-            cout << "O" << endl;
-            loadObj("cornell-box/cornell-box.mtl");
-        }
         else if(event.key.keysym.sym == SDLK_w) {
             cout << "W" << endl;
-            drawWireframes(loadObj("cornell-box/cornell-box.obj"));
+            float a = 5*PI/180;
+            rotateInX(a);
+        }
+        else if(event.key.keysym.sym == SDLK_s) {
+            cout << "S" << endl;
+            float a = -5*PI/180;
+            rotateInX(a);
+        }
+        else if(event.key.keysym.sym == SDLK_a) {
+            cout << "A" << endl;
+            float a = 5*PI/180;
+            rotateInY(a);
+        }
+        else if(event.key.keysym.sym == SDLK_d) {
+            cout << "D" << endl;
+            float a = -5*PI/180;
+            rotateInY(a);
+        }
+        else if(event.key.keysym.sym == SDLK_q) {
+            cout << "Q" << endl;
+            float a = 5*PI/180;
+            rotateInZ(a);
+        }
+        else if(event.key.keysym.sym == SDLK_e) {
+            cout << "E" << endl;
+            float a = -5*PI/180;
+            rotateInZ(a);
+        }
+        else if(event.key.keysym.sym == SDLK_l) {
+            cout << "L" << endl;
+            lookAt(vec3(1.245989, 1.491249, -0.894913));
         }
         else if(event.key.keysym.sym == SDLK_p) {
             cout << "P" << endl;
