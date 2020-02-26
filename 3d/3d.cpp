@@ -35,7 +35,7 @@ void drawModel(vector<ModelTriangle> triangles);
 void printMat3(mat3 m);
 
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
-vec3 cameraPos = vec3(0,0,10);
+vec3 cameraPos = vec3(0,0,HEIGHT/30);
 mat3 cameraOrientation = mat3(  1, 0, 0,
                                 0, 1, 0,
                                 0, 0, 1);
@@ -358,7 +358,7 @@ vector<ModelTriangle> loadObj(string path){
 
 CanvasTriangle triangleToCanvas(ModelTriangle t){
     //chnage this to something more meaningful
-    float focalLength = 400;
+    float focalLength = HEIGHT/2;
     // change this to a for loop
     CanvasTriangle projection;
     projection.colour = t.colour;
@@ -404,28 +404,29 @@ vector<float> getEmptyZArray(){
 
 //In radians
 void rotateInX(float a){
-    mat3 m = mat3(1,      0,       0,
-                  0, cos(a), -sin(a),
-                  0, sin(a), cos(a));
-    cameraOrientation = cameraOrientation * m;
+
+    mat3 m = mat3(vec3(1,      0,       0),
+                  vec3(0, cos(a), -sin(a)),
+                  vec3(0, sin(a), cos(a)));
+    cameraOrientation = cameraOrientation * m ;
 }
 
 void rotateInY(float a){
-    mat3 m = mat3(cos(a),  0, sin(a),
-                  0,       1,      0,
-                  -sin(a), 0, cos(a));
-    cameraOrientation = cameraOrientation * m;
+    mat3 m = mat3(vec3(cos(a),  0, sin(a)),
+                  vec3(0,       1,      0),
+                  vec3(-sin(a), 0, cos(a)));
+    cameraOrientation = cameraOrientation * m ;
 }
 
 void rotateInZ(float a){
-    mat3 m = mat3(  cos(a), -sin(a), 0,
-                    sin(a), cos(a), 0,
-                    0, 0, 1);
+    mat3 m = mat3(  vec3(cos(a), -sin(a), 0),
+                    vec3(sin(a), cos(a), 0),
+                    vec3(0, 0, 1));
     cameraOrientation = cameraOrientation * m;
 }
 
 void lookAt(vec3 p){
-    vec3 forward = normalize(cameraPos-p);
+    vec3 forward = normalize(cameraPos - p);
     vec3 right = normalize(cross(vec3(0, 1, 0), forward));
     vec3 up = normalize(cross(forward, right));
     printMat3(cameraOrientation);
@@ -439,6 +440,13 @@ void printMat3(mat3 m){
     for (int y =0; y<3;y++){
         cout << "(" << m[y][0] << "," << m[y][1] << "," << m[y][2] << ")" << endl;
     }
+}
+
+void resetCamera(){
+    cameraOrientation = mat3(  1, 0, 0,
+                                    0, 1, 0,
+                                    0, 0, 1);
+    cameraPos = vec3(0,0,10);
 }
 
 void handleEvent(SDL_Event event)
@@ -470,31 +478,37 @@ void handleEvent(SDL_Event event)
             cout << "W" << endl;
             float a = 5*PI/180;
             rotateInX(a);
+            printMat3(cameraOrientation);
         }
         else if(event.key.keysym.sym == SDLK_s) {
             cout << "S" << endl;
             float a = -5*PI/180;
             rotateInX(a);
+            printMat3(cameraOrientation);
         }
         else if(event.key.keysym.sym == SDLK_a) {
             cout << "A" << endl;
             float a = 5*PI/180;
             rotateInY(a);
+            printMat3(cameraOrientation);
         }
         else if(event.key.keysym.sym == SDLK_d) {
             cout << "D" << endl;
             float a = -5*PI/180;
             rotateInY(a);
+            printMat3(cameraOrientation);
         }
         else if(event.key.keysym.sym == SDLK_q) {
             cout << "Q" << endl;
             float a = 5*PI/180;
             rotateInZ(a);
+            printMat3(cameraOrientation);
         }
         else if(event.key.keysym.sym == SDLK_e) {
             cout << "E" << endl;
             float a = -5*PI/180;
             rotateInZ(a);
+            printMat3(cameraOrientation);
         }
         else if(event.key.keysym.sym == SDLK_l) {
             cout << "L" << endl;
@@ -503,6 +517,10 @@ void handleEvent(SDL_Event event)
         else if(event.key.keysym.sym == SDLK_p) {
             cout << "P" << endl;
             drawModel(loadObj("cornell-box/cornell-box.obj"));
+        }
+        else if(event.key.keysym.sym == SDLK_r) {
+            cout << "Reset" << endl;
+            resetCamera();
         }
     }
     else if(event.type == SDL_MOUSEBUTTONDOWN) cout << "MOUSE CLICKED" << endl;
