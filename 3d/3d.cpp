@@ -44,7 +44,7 @@ mat3 cameraOrientation = mat3(  1, 0, 0,
                                 0, 1, 0,
                                 0, 0, 1);
 
-vec4 cameraPos2 = vec4(0,1,6,1);
+vec4 cameraPos2 = vec4(0,0,6,1);
 
 mat4 cameraHom = transpose(mat4(  vec4(1,0,0,0),
                                   vec4(0,1,0,0),
@@ -404,7 +404,8 @@ CanvasPoint project3DPoint(vec3 p){
   float focalLength = 250;
   vec4 homP = vec4(p.x,p.y,p.z,1);
   vec4 a = homP * cameraHom;
-  CanvasPoint A = CanvasPoint((-a.x/a.z)*focalLength, (a.y/a.z)*focalLength, a.z); 
+  float ratio = -focalLength/a.z;
+  CanvasPoint A = CanvasPoint(a.x*ratio, (1-a.y)*ratio, a.z);
   return A;
 }
 
@@ -498,21 +499,14 @@ void rotateInZH(float a){
 }
 
 void lookAt(vec3 p){
-    // cout << cameraOrientation[0][1] << endl;
-    // cout << cameraOrientation[1][1] << endl;
-    // cout << cameraOrientation[2][1] << endl;
-    // vec3 f = vec3(0,0,1);
-    // vec3 forward = normalize(f - p);
-    // vec3 up = vec3(0,1,0);
-    // vec3 right = normalize(cross(forward, up));
+
     vec3 forward = normalize(cameraPos - p);
     vec3 right = normalize(cross(vec3(0, 1, 0), forward));
     vec3 up = normalize(cross(forward, right));
     printMat3(cameraOrientation);
-    cameraOrientation = transpose(mat3(right,up,forward));
-    // cameraOrientation = mat3(   right.x, up.x, forward.x,
-    //                             right.y, up.y, forward.y ,
-    //                             right.z, up.z, forward.z);
+    cameraOrientation = mat3(   right.x, up.x, forward.x,
+                                right.y, up.y, forward.y ,
+                                right.z, up.z, forward.z);
     printMat3(cameraOrientation);
     printVec3(cameraPos);
 }
@@ -566,7 +560,7 @@ void resetCamera(){
 }
 
 void resetCamera2(){
-  cameraPos2 = vec4(0,1,6,1);
+  cameraPos2 = vec4(0,0,6,1);
 
   cameraHom = transpose(mat4(  vec4(1,0,0,0),
                                     vec4(0,1,0,0),
