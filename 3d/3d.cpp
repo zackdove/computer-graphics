@@ -81,7 +81,7 @@ void draw()
 
 void update()
 {
-  cameraHom[0][3] = cameraPos2[0];
+  cameraHom[0][3] = -cameraPos2[0];
   cameraHom[1][3] = -cameraPos2[1];
   cameraHom[2][3] = -cameraPos2[2];
     // Function for performing animation (shifting artifacts or moving the camera)
@@ -517,14 +517,23 @@ void lookAt2(vec3 p){
   vec3 right = normalize(cross(vec3(0,1,0), forward));
   vec3 up = normalize(cross(forward, right));
 
+  // cameraHom[0][0] = right.x;
+  // cameraHom[1][0] = right.y;
+  // cameraHom[2][0] = right.z;
+  // cameraHom[0][1] = up.x;
+  // cameraHom[1][1] = up.y;
+  // cameraHom[2][1] = up.z;
+  // cameraHom[0][2] = forward.x;
+  // cameraHom[1][2] = forward.y;
+  // cameraHom[2][2] = forward.z;
   cameraHom[0][0] = right.x;
-  cameraHom[1][0] = right.y;
-  cameraHom[2][0] = right.z;
-  cameraHom[0][1] = up.x;
+  cameraHom[0][1] = right.y;
+  cameraHom[0][2] = right.z;
+  cameraHom[1][0] = up.x;
   cameraHom[1][1] = up.y;
-  cameraHom[2][1] = up.z;
-  cameraHom[0][2] = forward.x;
-  cameraHom[1][2] = forward.y;
+  cameraHom[1][2] = up.z;
+  cameraHom[2][0] = forward.x;
+  cameraHom[2][1] = forward.y;
   cameraHom[2][2] = forward.z;
   //potentially already updated so no need to do this
   // cameraHom[0][3] = camera.x;
@@ -575,13 +584,13 @@ void handleEvent(SDL_Event event)
     if(event.type == SDL_KEYDOWN) {
         if(event.key.keysym.sym == SDLK_LEFT) {
             //cameraPos.x += 1;
-            cameraPos2.x += 0.5;
+            cameraPos2.x -= 0.5;
             cout << "left" << endl;
 
         }
         else if(event.key.keysym.sym == SDLK_RIGHT) {
             //cameraPos.x -= 1;
-            cameraPos2.x -= 0.5;
+            cameraPos2.x += 0.5;
         }
         else if(event.key.keysym.sym == SDLK_UP) {
             //cameraPos.y -= 1;
