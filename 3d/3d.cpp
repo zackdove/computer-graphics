@@ -53,6 +53,7 @@ mat4 cameraHom = transpose(mat4(  vec4(1,0,0,0),
 
 
 
+
 int main(int argc, char* argv[])
 {
     vector<ModelTriangle> model = loadObj("cornell-box/cornell-box.obj");
@@ -80,7 +81,9 @@ void draw()
 
 void update()
 {
-  glm::row(cameraHom,3,cameraPos2);
+  cameraHom[0][3] = cameraPos2[0];
+  cameraHom[1][3] = -cameraPos2[1];
+  cameraHom[2][3] = -cameraPos2[2];
     // Function for performing animation (shifting artifacts or moving the camera)
 }
 
@@ -127,7 +130,6 @@ void drawRow(CanvasPoint from, CanvasPoint to, Colour colour, vector<float> &zAr
         if ((y < HEIGHT) && (y >= 0)  && ((from.x+x) >=0) && ((from.x+x) < WIDTH-1) ){
             if (rowWidth == 1) rowWidth = 2;
             float depth = -1/(from.depth+((to.depth-from.depth)*x/(rowWidth-1)));
-            // float depth = -1/from.depth;
             if (depth > zArray.at(y*WIDTH + from.x + x)){
                 zArray.at(y*WIDTH + from.x + x) = depth;
                 window.setPixelColour(round(from.x + x), y, colour.getPacked());
@@ -541,42 +543,35 @@ void resetCamera(){
     cameraPos = vec3(0,0,10);
 }
 
-void updateCameraPosition(mat4 hom, vec4 v){
-  row(hom,3,v);
-  printMat4(hom);
-}
+
 
 void handleEvent(SDL_Event event)
 {
     if(event.type == SDL_KEYDOWN) {
         if(event.key.keysym.sym == SDLK_LEFT) {
             //cameraPos.x += 1;
-            cameraPos2 += vec4(0.5,0,0,0);
+            cameraPos2.x += 0.5;
             cout << "left" << endl;
-            //printMat4(cameraHom);
-            printVec4(glm::row(cameraHom,3));
-            printVec4(cameraPos2);
-            updateCameraPosition(cameraHom,cameraPos2);
 
         }
         else if(event.key.keysym.sym == SDLK_RIGHT) {
-            cameraPos.x -= 1;
+            //cameraPos.x -= 1;
             cameraPos2.x -= 0.5;
         }
         else if(event.key.keysym.sym == SDLK_UP) {
-            cameraPos.y -= 1;
+            //cameraPos.y -= 1;
             cameraPos2.y += 0.5;
         }
         else if(event.key.keysym.sym == SDLK_DOWN) {
-            cameraPos.y += 1;
+            //cameraPos.y += 1;
             cameraPos2.y -= 0.5;
         }
         else if(event.key.keysym.sym == SDLK_RIGHTBRACKET) {
-            cameraPos.z += 1;
+            //cameraPos.z += 1;
             cameraPos2.z += 0.5;
         }
         else if(event.key.keysym.sym == SDLK_LEFTBRACKET) {
-            cameraPos.z -= 1;
+            //cameraPos.z -= 1;
             cameraPos2.z -= 0.5;
         }
         else if(event.key.keysym.sym == SDLK_c) {
