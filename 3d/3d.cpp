@@ -404,7 +404,7 @@ CanvasPoint project3DPoint(vec3 p){
   float focalLength = 250;
   vec4 homP = vec4(p.x,p.y,p.z,1);
   vec4 a = homP * cameraHom;
-  CanvasPoint A = CanvasPoint((-a.x/a.z)*focalLength, (a.y/a.z)*focalLength, a.z); // change to 1/z??
+  CanvasPoint A = CanvasPoint((-a.x/a.z)*focalLength, (a.y/a.z)*focalLength, a.z); 
   return A;
 }
 
@@ -517,6 +517,28 @@ void lookAt(vec3 p){
     printVec3(cameraPos);
 }
 
+void lookAt2(vec3 p){
+  vec3 camera = vec3(cameraPos2.x, cameraPos2.y, cameraPos2.z);
+  vec3 forward = normalize(camera - p);
+  vec3 right = normalize(cross(vec3(0,1,0), forward));
+  vec3 up = normalize(cross(forward, right));
+
+  cameraHom[0][0] = right.x;
+  cameraHom[1][0] = right.y;
+  cameraHom[2][0] = right.z;
+  cameraHom[0][1] = up.x;
+  cameraHom[1][1] = up.y;
+  cameraHom[2][1] = up.z;
+  cameraHom[0][2] = forward.x;
+  cameraHom[1][2] = forward.y;
+  cameraHom[2][2] = forward.z;
+  //potentially already updated so no need to do this
+  // cameraHom[0][3] = camera.x;
+  // cameraHom[1][3] = camera.y;
+  // cameraHom[2][3] = camera.z;
+  printMat4(cameraHom);
+}
+
 void printMat3(mat3 m){
     for (int y =0; y<3;y++){
         cout << "(" << m[y][0] << "," << m[y][1] << "," << m[y][2] << ")" << endl;
@@ -543,6 +565,15 @@ void resetCamera(){
     cameraPos = vec3(0,0,10);
 }
 
+void resetCamera2(){
+  cameraPos2 = vec4(0,1,6,1);
+
+  cameraHom = transpose(mat4(  vec4(1,0,0,0),
+                                    vec4(0,1,0,0),
+                                    vec4(0,0,1,0),
+                                    -cameraPos2));
+}
+
 
 
 void handleEvent(SDL_Event event)
@@ -560,11 +591,11 @@ void handleEvent(SDL_Event event)
         }
         else if(event.key.keysym.sym == SDLK_UP) {
             //cameraPos.y -= 1;
-            cameraPos2.y += 0.5;
+            cameraPos2.y += 0.25;
         }
         else if(event.key.keysym.sym == SDLK_DOWN) {
             //cameraPos.y += 1;
-            cameraPos2.y -= 0.5;
+            cameraPos2.y -= 0.25;
         }
         else if(event.key.keysym.sym == SDLK_RIGHTBRACKET) {
             //cameraPos.z += 1;
@@ -621,7 +652,7 @@ void handleEvent(SDL_Event event)
         else if(event.key.keysym.sym == SDLK_l) {
             cout << "L" << endl;
             window.clearPixels();
-            lookAt(vec3(0, 0, 0));
+            lookAt2(vec3(0, 0, 0));
         }
         else if(event.key.keysym.sym == SDLK_p) {
             cout << "P" << endl;
@@ -630,7 +661,7 @@ void handleEvent(SDL_Event event)
         }
         else if(event.key.keysym.sym == SDLK_r) {
             cout << "Reset" << endl;
-            resetCamera();
+            resetCamera2();
         }
     }
     else if(event.type == SDL_MOUSEBUTTONDOWN) cout << "MOUSE CLICKED" << endl;
