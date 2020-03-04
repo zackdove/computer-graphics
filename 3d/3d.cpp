@@ -577,6 +577,34 @@ void resetCamera2(){
                                     -cameraPos2));
 }
 
+bool solutionOnTriangle(vec3 i){
+    return (0<=i.y && i.y<=1 && 0<=i.z && i.z<=1 && (i.y+i.z<=1));
+}
+
+void getClosestIntersection(vector<ModelTriangle> triangles, vec3 ray){
+    float closestDist = std::numeric_limits<float>::infinity();
+    for (int i=0; i<triangles.size(); i++){
+        ModelTriangle triangle = triangles.at(i);
+        vec3 e0 = triangle.vertices[1] - triangle.vertices[0];
+        vec3 e1 = triangle.vertices[2] - triangle.vertices[0];
+        //CameraPos2 is in homogenous, everything else needs to be too
+        vec3 SPVector = cameraPosition-triangle.vertices[0];
+        mat3 DEMatrix(-ray, e0, e1);
+        vec3 possibleSolution = glm::inverse(DEMatrix) * SPVector;
+        if (solutionOnTriangle(possibleSolution)){
+            if (possibleSolution.x < closestDist){
+                closestDist = possibleSolution.x;
+                //draw
+            } else {
+                //interscts & on triangle but not closest
+            }
+        } else {
+            // not on triangle
+        }
+    }
+
+}
+
 
 
 void handleEvent(SDL_Event event)
