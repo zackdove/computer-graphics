@@ -45,7 +45,7 @@ DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 mat4 cameraOrientation = mat4(  vec4(1,0,0,0),
                                 vec4(0,1,0,0),
                                 vec4(0,0,1,0),
-                                -vec4(0,0,6,1)  );
+                                -vec4(0,0,6,1));
 
 
 
@@ -377,8 +377,8 @@ CanvasPoint toImageCoords(CanvasPoint p)
 }
 
 CanvasPoint project3DPoint(vec4 p){
-  float focalLength = 50;
-  vec4 a = p * cameraOrientation;
+  float focalLength = 250;
+  vec4 a = cameraOrientation*p;
   float ratio = -focalLength/a.z;
   CanvasPoint A = CanvasPoint(a.x*ratio, (1-a.y)*ratio, a.z);
   return A;
@@ -454,17 +454,17 @@ void rotateInZ(float a){
 
 
 void lookAt(vec4 p){
-  vec3 forward = normalize(vec3(cameraOrientation[3])  - vec3(p));
+  vec3 forward = normalize(vec3(-cameraOrientation[3])  - vec3(p));
   vec3 right = normalize(cross(vec3(0,1,0), forward));
   vec3 up = normalize(cross(forward, right));
   cameraOrientation[0][0] = right.x;
-  cameraOrientation[0][1] = right.y;
-  cameraOrientation[0][2] = right.z;
-  cameraOrientation[1][0] = up.x;
+  cameraOrientation[1][0] = right.y;
+  cameraOrientation[2][0] = right.z;
+  cameraOrientation[0][1] = up.x;
   cameraOrientation[1][1] = up.y;
-  cameraOrientation[1][2] = up.z;
-  cameraOrientation[2][0] = forward.x;
-  cameraOrientation[2][1] = forward.y;
+  cameraOrientation[2][1] = up.z;
+  cameraOrientation[0][2] = forward.x;
+  cameraOrientation[1][2] = forward.y;
   cameraOrientation[2][2] = forward.z;
   printMat4(cameraOrientation);
 }
@@ -490,10 +490,10 @@ void printVec4(vec4 v){
 
 
 void resetCamera(){
-    cameraOrientation = transpose(mat4(  vec4(1,0,0,0),
+    cameraOrientation = mat4(  vec4(1,0,0,0),
                                     vec4(0,1,0,0),
                                     vec4(0,0,1,0),
-                                    -vec4(0,0,6,1)));
+                                    -vec4(0,0,6,1));
 }
 
 bool solutionOnTriangle(vec4 i){
@@ -538,22 +538,27 @@ void handleEvent(SDL_Event event)
         else if(event.key.keysym.sym == SDLK_RIGHT) {
             //cameraPos.x -= 1;
             cameraOrientation[3].x += 0.5;
+            printMat4(cameraOrientation);
         }
         else if(event.key.keysym.sym == SDLK_UP) {
             //cameraPos.y -= 1;
             cameraOrientation[3].y += 0.25;
+            printMat4(cameraOrientation);
         }
         else if(event.key.keysym.sym == SDLK_DOWN) {
             //cameraPos.y += 1;
             cameraOrientation[3].y -= 0.25;
+            printMat4(cameraOrientation);
         }
         else if(event.key.keysym.sym == SDLK_RIGHTBRACKET) {
             //cameraPos.z += 1;
             cameraOrientation[3].z += 0.5;
+            printMat4(cameraOrientation);
         }
         else if(event.key.keysym.sym == SDLK_LEFTBRACKET) {
             //cameraPos.z -= 1;
             cameraOrientation[3].z -= 0.5;
+            printMat4(cameraOrientation);
         }
         else if(event.key.keysym.sym == SDLK_c) {
             cout << "C" << endl;
