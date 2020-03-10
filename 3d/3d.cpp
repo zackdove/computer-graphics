@@ -39,17 +39,13 @@ void printMat4(mat4 m);
 void printVec4(vec4 v);
 
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
-vec3 cameraPos = vec3(0,0,HEIGHT/30);
-mat3 cameraOrientation = mat3(  1, 0, 0,
-                                0, 1, 0,
-                                0, 0, 1);
 
-vec4 cameraPos2 = vec4(0,0,6,1);
 
-mat4 cameraHom = transpose(mat4(  vec4(1,0,0,0),
-                                  vec4(0,1,0,0),
-                                  vec4(0,0,1,0),
-                                  -cameraPos2));
+
+mat4 cameraOrientation = mat4(  vec4(1,0,0,0),
+                                vec4(0,1,0,0),
+                                vec4(0,0,1,0),
+                                -vec4(0,0,6,1)  );
 
 
 
@@ -81,9 +77,7 @@ void draw()
 
 void update()
 {
-  cameraHom[0][3] = -cameraPos2[0];
-  cameraHom[1][3] = -cameraPos2[1];
-  cameraHom[2][3] = -cameraPos2[2];
+
     // Function for performing animation (shifting artifacts or moving the camera)
 }
 
@@ -319,7 +313,7 @@ vector<ModelTriangle> loadObj(string path){
     file.open(path);
     char space = char(32);
     vector<string> materialFileNames;
-    vector<vec3> points;
+    vector<vec4> points;
     vector<Colour> colours;
     vector<ModelTriangle> triangles;
     //Get vertices, and material files
@@ -331,7 +325,7 @@ vector<ModelTriangle> loadObj(string path){
             vector<Colour> newColours = loadMtl(items[1]);
             colours.insert(colours.end(), newColours.begin(), newColours.end() );
         } else if (!items[0].compare("v")){
-            vec3 point = vec3( stof(items[1]), stof(items[2]), stof(items[3]) );
+            vec4 point = vec4( stof(items[1]), stof(items[2]), stof(items[3]) , 1);
             // vec3 point = vec3(1, 1, 1);
             points.push_back(point);
         }
@@ -372,24 +366,6 @@ vector<ModelTriangle> loadObj(string path){
     return triangles;
 }
 
-CanvasTriangle triangleToCanvas(ModelTriangle t){
-    //chnage this to something more meaningful
-    float focalLength = HEIGHT/2;
-    // change this to a for loop
-    CanvasTriangle projection;
-    projection.colour = t.colour;
-    for (int i = 0; i < 3; i++){
-        vec3 cameraToVertex = t.vertices[i] - cameraPos;
-        vec3 adjustedVector = cameraToVertex * cameraOrientation;
-        float ratio = focalLength/ -cameraToVertex.z;
-        // change to int?
-        int xImage = (adjustedVector.x*ratio) + WIDTH/2;
-        int yImage = ((1-adjustedVector.y)*ratio) + HEIGHT/2;
-        CanvasPoint currentPoint(xImage, yImage, adjustedVector.z);
-        projection.vertices[i] = currentPoint;
-    }
-    return projection;
-}
 
 CanvasPoint toImageCoords(CanvasPoint p)
 {
@@ -400,10 +376,9 @@ CanvasPoint toImageCoords(CanvasPoint p)
 	return CanvasPoint(xp, yp, p.depth);
 }
 
-CanvasPoint project3DPoint(vec3 p){
-  float focalLength = 250;
-  vec4 homP = vec4(p.x,p.y,p.z,1);
-  vec4 a = homP * cameraHom;
+CanvasPoint project3DPoint(vec4 p){
+  float focalLength = 50;
+  vec4 a = p * cameraOrientation;
   float ratio = -focalLength/a.z;
   CanvasPoint A = CanvasPoint(a.x*ratio, (1-a.y)*ratio, a.z);
   return A;
@@ -411,7 +386,7 @@ CanvasPoint project3DPoint(vec3 p){
 
 
 
-CanvasTriangle triangleToCanvas2(ModelTriangle t){
+CanvasTriangle triangleToCanvas(ModelTriangle t){
   CanvasPoint A = project3DPoint(t.vertices[0]);
   CanvasPoint B = project3DPoint(t.vertices[1]);
   CanvasPoint C = project3DPoint(t.vertices[2]);
@@ -425,7 +400,7 @@ CanvasTriangle triangleToCanvas2(ModelTriangle t){
 void drawWireframes(vector<ModelTriangle> triangles){
     for (int i = 0; i < triangles.size(); i++){
         ModelTriangle currentTriangle = triangles.at(i);
-        CanvasTriangle t = triangleToCanvas2(currentTriangle);
+        CanvasTriangle t = triangleToCanvas(currentTriangle);
         drawStrokeTriangle(t);
     }
 }
@@ -434,7 +409,7 @@ void drawModel(vector<ModelTriangle> triangles){
     vector<float> zArray = getEmptyZArray();
     for (int i = 0; i < triangles.size(); i++){
         ModelTriangle currentTriangle = triangles.at(i);
-        CanvasTriangle t = triangleToCanvas2(currentTriangle);
+        CanvasTriangle t = triangleToCanvas(currentTriangle);
         drawFilledTriangle(t, zArray);
     }
 }
@@ -449,97 +424,49 @@ vector<float> getEmptyZArray(){
     return a;
 }
 
-//In radians
+
+
 void rotateInX(float a){
-
-    mat3 m = mat3(vec3(1,      0,       0),
-                  vec3(0, cos(a), -sin(a)),
-                  vec3(0, sin(a), cos(a)));
-    cameraOrientation = cameraOrientation * m ;
-}
-
-void rotateInY(float a){
-    mat3 m = mat3(vec3(cos(a),  0, sin(a)),
-                  vec3(0,       1,      0),
-                  vec3(-sin(a), 0, cos(a)));
-    cameraOrientation = cameraOrientation * m ;
-}
-
-void rotateInZ(float a){
-    mat3 m = mat3(  vec3(cos(a), -sin(a), 0),
-                    vec3(sin(a), cos(a), 0),
-                    vec3(0, 0, 1));
-    cameraOrientation = cameraOrientation * m;
-}
-
-
-void rotateInXH(float a){
 
     mat4 m = mat4(vec4(1,      0,       0, 0),
                   vec4(0, cos(a), -sin(a), 0),
                   vec4(0, sin(a), cos(a),  0),
                   vec4(0, 0,0,1));
-    cameraHom = cameraHom * m ;
+    cameraOrientation = cameraOrientation * m ;
 }
 
-void rotateInYH(float a){
+void rotateInY(float a){
     mat4 m = mat4(vec4(cos(a),  0, sin(a),0),
                   vec4(0,       1,      0,0),
                   vec4(-sin(a), 0, cos(a),0),
                   vec4(0,0,0,1));
-    cameraHom = cameraHom * m ;
+    cameraOrientation = cameraOrientation * m ;
 }
 
-void rotateInZH(float a){
+void rotateInZ(float a){
     mat4 m = mat4(  vec4(cos(a), -sin(a), 0,0),
                     vec4(sin(a), cos(a), 0,0),
                     vec4(0, 0, 1,0),
                     vec4(0,0,0,1));
-    cameraHom = cameraHom * m;
+    cameraOrientation = cameraOrientation * m;
 }
 
-void lookAt(vec3 p){
 
-    vec3 forward = normalize(cameraPos - p);
-    vec3 right = normalize(cross(vec3(0, 1, 0), forward));
-    vec3 up = normalize(cross(forward, right));
-    printMat3(cameraOrientation);
-    cameraOrientation = mat3(   right.x, up.x, forward.x,
-                                right.y, up.y, forward.y ,
-                                right.z, up.z, forward.z);
-    printMat3(cameraOrientation);
-    printVec3(cameraPos);
-}
 
-void lookAt2(vec3 p){
-  vec3 camera = vec3(cameraPos2.x, cameraPos2.y, cameraPos2.z);
-  vec3 forward = normalize(camera - p);
+void lookAt(vec4 p){
+  vec3 forward = normalize(vec3(cameraOrientation[3])  - vec3(p));
   vec3 right = normalize(cross(vec3(0,1,0), forward));
   vec3 up = normalize(cross(forward, right));
-
-  // cameraHom[0][0] = right.x;
-  // cameraHom[1][0] = right.y;
-  // cameraHom[2][0] = right.z;
-  // cameraHom[0][1] = up.x;
-  // cameraHom[1][1] = up.y;
-  // cameraHom[2][1] = up.z;
-  // cameraHom[0][2] = forward.x;
-  // cameraHom[1][2] = forward.y;
-  // cameraHom[2][2] = forward.z;
-  cameraHom[0][0] = right.x;
-  cameraHom[0][1] = right.y;
-  cameraHom[0][2] = right.z;
-  cameraHom[1][0] = up.x;
-  cameraHom[1][1] = up.y;
-  cameraHom[1][2] = up.z;
-  cameraHom[2][0] = forward.x;
-  cameraHom[2][1] = forward.y;
-  cameraHom[2][2] = forward.z;
-  //potentially already updated so no need to do this
-  // cameraHom[0][3] = camera.x;
-  // cameraHom[1][3] = camera.y;
-  // cameraHom[2][3] = camera.z;
-  printMat4(cameraHom);
+  cameraOrientation[0][0] = right.x;
+  cameraOrientation[0][1] = right.y;
+  cameraOrientation[0][2] = right.z;
+  cameraOrientation[1][0] = up.x;
+  cameraOrientation[1][1] = up.y;
+  cameraOrientation[1][2] = up.z;
+  cameraOrientation[2][0] = forward.x;
+  cameraOrientation[2][1] = forward.y;
+  cameraOrientation[2][2] = forward.z;
+  printMat4(cameraOrientation);
 }
 
 void printMat3(mat3 m){
@@ -561,23 +488,15 @@ void printVec4(vec4 v){
   cout << "(" << v[0] << "," << v[1] << "," << v[2] << ","<< v[3] << ")" << endl;
 }
 
+
 void resetCamera(){
-    cameraOrientation = mat3( 1, 0, 0,
-                              0, 1, 0,
-                              0, 0, 1);
-    cameraPos = vec3(0,0,10);
-}
-
-void resetCamera2(){
-  cameraPos2 = vec4(0,0,6,1);
-
-  cameraHom = transpose(mat4(  vec4(1,0,0,0),
+    cameraOrientation = transpose(mat4(  vec4(1,0,0,0),
                                     vec4(0,1,0,0),
                                     vec4(0,0,1,0),
-                                    -cameraPos2));
+                                    -vec4(0,0,6,1)));
 }
 
-bool solutionOnTriangle(vec3 i){
+bool solutionOnTriangle(vec4 i){
     return (0<=i.y && i.y<=1 && 0<=i.z && i.z<=1 && (i.y+i.z<=1));
 }
 
@@ -585,12 +504,12 @@ void getClosestIntersection(vector<ModelTriangle> triangles, vec3 ray){
     float closestDist = std::numeric_limits<float>::infinity();
     for (int i=0; i<triangles.size(); i++){
         ModelTriangle triangle = triangles.at(i);
-        vec3 e0 = triangle.vertices[1] - triangle.vertices[0];
-        vec3 e1 = triangle.vertices[2] - triangle.vertices[0];
+        vec4 e0 = triangle.vertices[1] - triangle.vertices[0];
+        vec4 e1 = triangle.vertices[2] - triangle.vertices[0];
         //CameraPos2 is in homogenous, everything else needs to be too
-        vec3 SPVector = cameraPosition-triangle.vertices[0];
-        mat3 DEMatrix(-ray, e0, e1);
-        vec3 possibleSolution = glm::inverse(DEMatrix) * SPVector;
+        vec4 ray = cameraOrientation[3]-triangle.vertices[0];
+        mat4 DEMatrix(-ray, e0, e1,vec4(0,0,0,1));
+        vec4 possibleSolution = glm::inverse(DEMatrix) * ray;
         if (solutionOnTriangle(possibleSolution)){
             if (possibleSolution.x < closestDist){
                 closestDist = possibleSolution.x;
@@ -602,7 +521,6 @@ void getClosestIntersection(vector<ModelTriangle> triangles, vec3 ray){
             // not on triangle
         }
     }
-
 }
 
 
@@ -612,29 +530,30 @@ void handleEvent(SDL_Event event)
     if(event.type == SDL_KEYDOWN) {
         if(event.key.keysym.sym == SDLK_LEFT) {
             //cameraPos.x += 1;
-            cameraPos2.x -= 0.5;
+            cameraOrientation[3].x -= 0.5;
             cout << "left" << endl;
+            printMat4(cameraOrientation);
 
         }
         else if(event.key.keysym.sym == SDLK_RIGHT) {
             //cameraPos.x -= 1;
-            cameraPos2.x += 0.5;
+            cameraOrientation[3].x += 0.5;
         }
         else if(event.key.keysym.sym == SDLK_UP) {
             //cameraPos.y -= 1;
-            cameraPos2.y += 0.25;
+            cameraOrientation[3].y += 0.25;
         }
         else if(event.key.keysym.sym == SDLK_DOWN) {
             //cameraPos.y += 1;
-            cameraPos2.y -= 0.25;
+            cameraOrientation[3].y -= 0.25;
         }
         else if(event.key.keysym.sym == SDLK_RIGHTBRACKET) {
             //cameraPos.z += 1;
-            cameraPos2.z += 0.5;
+            cameraOrientation[3].z += 0.5;
         }
         else if(event.key.keysym.sym == SDLK_LEFTBRACKET) {
             //cameraPos.z -= 1;
-            cameraPos2.z -= 0.5;
+            cameraOrientation[3].z -= 0.5;
         }
         else if(event.key.keysym.sym == SDLK_c) {
             cout << "C" << endl;
@@ -643,47 +562,47 @@ void handleEvent(SDL_Event event)
         else if(event.key.keysym.sym == SDLK_w) {
             cout << "W" << endl;
             float a = 5*PI/180;
-            rotateInXH(a);
+            rotateInX(a);
             //printMat3(cameraOrientation);
-            printMat4(cameraHom);
+            printMat4(cameraOrientation);
         }
         else if(event.key.keysym.sym == SDLK_s) {
             cout << "S" << endl;
             float a = -5*PI/180;
-            rotateInXH(a);
+            rotateInX(a);
             //printMat3(cameraOrientation);
-            printMat4(cameraHom);
+            printMat4(cameraOrientation);
         }
         else if(event.key.keysym.sym == SDLK_a) {
             cout << "A" << endl;
             float a = 5*PI/180;
-            rotateInYH(a);
-            printMat3(cameraOrientation);
+            rotateInY(a);
+            printMat4(cameraOrientation);
         }
         else if(event.key.keysym.sym == SDLK_d) {
             cout << "D" << endl;
             float a = -5*PI/180;
-            rotateInYH(a);
+            rotateInY(a);
             //printMat3(cameraOrientation);
-            printMat4(cameraHom);
+            printMat4(cameraOrientation);
         }
         else if(event.key.keysym.sym == SDLK_q) {
             cout << "Q" << endl;
             float a = 5*PI/180;
-            rotateInZH(a);
-            printMat3(cameraOrientation);
+            rotateInZ(a);
+            printMat4(cameraOrientation);
         }
         else if(event.key.keysym.sym == SDLK_e) {
             cout << "E" << endl;
             float a = -5*PI/180;
-            rotateInZH(a);
+            rotateInZ(a);
             //printMat3(cameraOrientation);
-            printMat4(cameraHom);
+            printMat4(cameraOrientation);
         }
         else if(event.key.keysym.sym == SDLK_l) {
             cout << "L" << endl;
             window.clearPixels();
-            lookAt2(vec3(0, 0, 0));
+            lookAt(vec4(0, 0, 0, 0));
         }
         else if(event.key.keysym.sym == SDLK_p) {
             cout << "P" << endl;
@@ -692,7 +611,7 @@ void handleEvent(SDL_Event event)
         }
         else if(event.key.keysym.sym == SDLK_r) {
             cout << "Reset" << endl;
-            resetCamera2();
+            resetCamera();
         }
     }
     else if(event.type == SDL_MOUSEBUTTONDOWN) cout << "MOUSE CLICKED" << endl;
