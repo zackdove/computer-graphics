@@ -379,8 +379,8 @@ vector<ModelTriangle> loadObj(string path){
 CanvasPoint toImageCoords(CanvasPoint p){
     int w = WIDTH / 2;
     int h = HEIGHT / 2;
-    float xp = w + (p.x);
-    float yp = h + (p.y);
+    int xp = w + (p.x);
+    int yp = h + (p.y);
     return CanvasPoint(xp, yp, p.depth);
 }
 
