@@ -39,50 +39,50 @@ void printMat4(mat4 m);
 void printVec4(vec4 v);
 void draw(vector<ModelTriangle> model);
 void raytraceModel(vector<ModelTriangle> model);
+void drawWireframes(vector<ModelTriangle> triangles);
 
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 
 
-
+//right, up, forward
 mat4 cameraOrientation = mat4(  vec4(1,0,0,0),
-                                vec4(0,1,0,0),
-                                vec4(0,0,1,0),
-                                -vec4(0,0,6,1));
+vec4(0,1,0,0),
+vec4(0,0,1,0),
+-vec4(0,1,6,1));
 
-//0 =rasterize, 1=raytrace, 2= fuck u
+//0=wait, 1=wireframes, 2=rasterize, 3=raytrace
 int mode = 1;
 
 
-int main(int argc, char* argv[])
-{
+int main(int argc, char* argv[]){
     vector<ModelTriangle> model = loadObj("cornell-box/cornell-box.obj");
 
     SDL_Event event;
-    while(true)
-    {
+    while(true){
         // We MUST poll for events - otherwise the window will freeze !
         if(window.pollForInputEvents(&event)) {
             handleEvent(event);
         }
         update();
         draw(model);
-
     }
 }
 
-void draw(vector<ModelTriangle> model)
-{
-    window.clearPixels();
-    if (mode==0){
-        rasterizeModel(model);
-    } else if(mode==1){
-        raytraceModel(model);
-        cout << "waiting for user enter" << endl;
-        getchar();
-    }
+void draw(vector<ModelTriangle> model){
+    if (mode != 0){
+        window.clearPixels();
+        if (mode==1){
+            drawWireframes(model);
+        } else if(mode==2){
+            rasterizeModel(model);
 
-    // Need to render the frame at the end, or nothing actually gets shown on the screen !
-    window.renderFrame();
+        } else if(mode==3){
+            raytraceModel(model);
+            cout << "Model raytraced, waiting for user enter" << endl;
+            mode = 0;
+        }
+        window.renderFrame();
+    }
 }
 
 void update()
@@ -377,30 +377,30 @@ vector<ModelTriangle> loadObj(string path){
 }
 
 CanvasPoint toImageCoords(CanvasPoint p){
-	int w = WIDTH / 2;
-	int h = HEIGHT / 2;
-	float xp = w + (p.x);
-	float yp = h + (p.y);
-	return CanvasPoint(xp, yp, p.depth);
+    int w = WIDTH / 2;
+    int h = HEIGHT / 2;
+    float xp = w + (p.x);
+    float yp = h + (p.y);
+    return CanvasPoint(xp, yp, p.depth);
 }
 
 CanvasPoint project3DPoint(vec4 p){
-  float focalLength = 250;
-  vec4 a = cameraOrientation*p;
-  float ratio = -focalLength/a.z;
-  CanvasPoint A = CanvasPoint(a.x*ratio, (1-a.y)*ratio, a.z);
-  return A;
+    float focalLength = 250;
+    vec4 a = cameraOrientation*p;
+    float ratio = focalLength/a.z;
+    CanvasPoint A = CanvasPoint(-a.x*ratio, (a.y)*ratio, a.z);
+    return A;
 }
 
 CanvasTriangle triangleToCanvas(ModelTriangle t){
-  CanvasPoint A = project3DPoint(t.vertices[0]);
-  CanvasPoint B = project3DPoint(t.vertices[1]);
-  CanvasPoint C = project3DPoint(t.vertices[2]);
-  A = toImageCoords(A);
-  B = toImageCoords(B);
-  C = toImageCoords(C);
-  CanvasTriangle projection = CanvasTriangle(A,B,C, t.colour);
-  return projection;
+    CanvasPoint A = project3DPoint(t.vertices[0]);
+    CanvasPoint B = project3DPoint(t.vertices[1]);
+    CanvasPoint C = project3DPoint(t.vertices[2]);
+    A = toImageCoords(A);
+    B = toImageCoords(B);
+    C = toImageCoords(C);
+    CanvasTriangle projection = CanvasTriangle(A,B,C, t.colour);
+    return projection;
 }
 
 void drawWireframes(vector<ModelTriangle> triangles){
@@ -431,42 +431,42 @@ vector<float> getEmptyZArray(){
 void rotateInX(float a){
 
     mat4 m = mat4(vec4(1,      0,       0, 0),
-                  vec4(0, cos(a), -sin(a), 0),
-                  vec4(0, sin(a), cos(a),  0),
-                  vec4(0, 0,0,1));
+    vec4(0, cos(a), -sin(a), 0),
+    vec4(0, sin(a), cos(a),  0),
+    vec4(0, 0,0,1));
     cameraOrientation = cameraOrientation * m ;
 }
 
 void rotateInY(float a){
     mat4 m = mat4(vec4(cos(a),  0, sin(a),0),
-                  vec4(0,       1,      0,0),
-                  vec4(-sin(a), 0, cos(a),0),
-                  vec4(0,0,0,1));
+    vec4(0,       1,      0,0),
+    vec4(-sin(a), 0, cos(a),0),
+    vec4(0,0,0,1));
     cameraOrientation = cameraOrientation * m ;
 }
 
 void rotateInZ(float a){
     mat4 m = mat4(  vec4(cos(a), -sin(a), 0,0),
-                    vec4(sin(a), cos(a), 0,0),
-                    vec4(0, 0, 1,0),
-                    vec4(0,0,0,1));
+    vec4(sin(a), cos(a), 0,0),
+    vec4(0, 0, 1,0),
+    vec4(0,0,0,1));
     cameraOrientation = cameraOrientation * m;
 }
 
 void lookAt(vec4 p){
-  vec3 forward = normalize(vec3(-cameraOrientation[3])  - vec3(p));
-  vec3 right = normalize(cross(vec3(0,1,0), forward));
-  vec3 up = normalize(cross(forward, right));
-  cameraOrientation[0][0] = right.x;
-  cameraOrientation[1][0] = right.y;
-  cameraOrientation[2][0] = right.z;
-  cameraOrientation[0][1] = up.x;
-  cameraOrientation[1][1] = up.y;
-  cameraOrientation[2][1] = up.z;
-  cameraOrientation[0][2] = forward.x;
-  cameraOrientation[1][2] = forward.y;
-  cameraOrientation[2][2] = forward.z;
-  printMat4(cameraOrientation);
+    vec3 forward = normalize(vec3(-cameraOrientation[3])  - vec3(p));
+    vec3 right = normalize(cross(vec3(0,1,0), forward));
+    vec3 up = normalize(cross(forward, right));
+    cameraOrientation[0][0] = right.x;
+    cameraOrientation[1][0] = right.y;
+    cameraOrientation[2][0] = right.z;
+    cameraOrientation[0][1] = up.x;
+    cameraOrientation[1][1] = up.y;
+    cameraOrientation[2][1] = up.z;
+    cameraOrientation[0][2] = forward.x;
+    cameraOrientation[1][2] = forward.y;
+    cameraOrientation[2][2] = forward.z;
+    printMat4(cameraOrientation);
 }
 
 void printMat3(mat3 m){
@@ -484,18 +484,18 @@ void printMat4(mat4 m){
 }
 
 void printVec3(vec3 v){
-  cout << "(" << v[0] << "," << v[1] << "," << v[2] << ")" << endl;
+    cout << "(" << v[0] << "," << v[1] << "," << v[2] << ")" << endl;
 }
 void printVec4(vec4 v){
-  cout << "(" << v[0] << "," << v[1] << "," << v[2] << ","<< v[3] << ")" << endl;
+    cout << "(" << v[0] << "," << v[1] << "," << v[2] << ","<< v[3] << ")" << endl;
 }
 
 
 void resetCamera(){
     cameraOrientation = mat4(  vec4(1,0,0,0),
-                                    vec4(0,1,0,0),
-                                    vec4(0,0,1,0),
-                                    -vec4(0,0,6,1));
+    vec4(0,1,0,0),
+    vec4(0,0,1,0),
+    -vec4(0,1,6,1));
 }
 
 bool solutionOnTriangle(vec3 i){
@@ -538,11 +538,14 @@ Colour getClosestIntersection(vector<ModelTriangle> triangles, vec3 ray){
 }
 
 void raytraceModel(vector<ModelTriangle> triangles){
+    // vec3 forward = cameraOrientation[2];
+    // vec3 right = cameraOrientation[0];
+    // vec3 up = cameraOrientation[1];
+
     for(int y= 0; y< HEIGHT; y++){
         for (int x = 0; x < WIDTH; x++){
             float f = 250;
-            vec3 point = vec3(-(x-(WIDTH/2)), y-(HEIGHT/2), f);
-            point = 
+            vec3 point = vec3(-(x-(WIDTH/2)), y-(HEIGHT/2), f) *glm::inverse(mat3(cameraOrientation));
             vec3 ray = normalize(point -  vec3(-(cameraOrientation[3])));
             Colour c = getClosestIntersection(triangles, ray );
             window.setPixelColour(x, y, c.getPacked());
@@ -644,8 +647,20 @@ void handleEvent(SDL_Event event)
             resetCamera();
         }
         else if(event.key.keysym.sym == SDLK_m) {
-            mode = (mode + 1) %2;
+            mode = (mode + 1) %4;
             cout << "Mode:" << mode << endl;
+        }
+        else if(event.key.keysym.sym == SDLK_1) {
+            mode = 1;
+            cout << "Wireframe:" << endl;
+        }
+        else if(event.key.keysym.sym == SDLK_2) {
+            mode = 2;
+            cout << "Rasterize:" << endl;
+        }
+        else if(event.key.keysym.sym == SDLK_3) {
+            mode = 3;
+            cout << "Raytrace:" << endl;
         }
     }
     else if(event.type == SDL_MOUSEBUTTONDOWN) cout << "MOUSE CLICKED" << endl;
