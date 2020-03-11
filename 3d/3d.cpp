@@ -32,11 +32,13 @@ void createTextureTriangle();
 vector<float> getEmptyZArray();
 vector<ModelTriangle> loadObj(string path);
 void drawRow(CanvasPoint from, CanvasPoint to, Colour colour, vector<float> &zArray);
-void drawModel(vector<ModelTriangle> triangles);
+void rasterizeModel(vector<ModelTriangle> triangles);
 void printMat3(mat3 m);
 void printVec3(vec3 v);
 void printMat4(mat4 m);
 void printVec4(vec4 v);
+void draw(vector<ModelTriangle> model);
+void raytraceModel(vector<ModelTriangle> model);
 
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 
@@ -47,7 +49,8 @@ mat4 cameraOrientation = mat4(  vec4(1,0,0,0),
                                 vec4(0,0,1,0),
                                 -vec4(0,0,6,1));
 
-
+//0 =rasterize, 1=raytrace, 2= fuck u
+int mode = 1;
 
 
 int main(int argc, char* argv[])
@@ -62,17 +65,24 @@ int main(int argc, char* argv[])
             handleEvent(event);
         }
         update();
-        draw();
-        window.clearPixels();
-        drawModel(model);
-        // Need to render the frame at the end, or nothing actually gets shown on the screen !
-        window.renderFrame();
+        draw(model);
+
     }
 }
 
-void draw()
+void draw(vector<ModelTriangle> model)
 {
+    window.clearPixels();
+    if (mode==0){
+        rasterizeModel(model);
+    } else if(mode==1){
+        raytraceModel(model);
+        cout << "waiting for user enter" << endl;
+        getchar();
+    }
 
+    // Need to render the frame at the end, or nothing actually gets shown on the screen !
+    window.renderFrame();
 }
 
 void update()
@@ -366,9 +376,7 @@ vector<ModelTriangle> loadObj(string path){
     return triangles;
 }
 
-
-CanvasPoint toImageCoords(CanvasPoint p)
-{
+CanvasPoint toImageCoords(CanvasPoint p){
 	int w = WIDTH / 2;
 	int h = HEIGHT / 2;
 	float xp = w + (p.x);
@@ -383,8 +391,6 @@ CanvasPoint project3DPoint(vec4 p){
   CanvasPoint A = CanvasPoint(a.x*ratio, (1-a.y)*ratio, a.z);
   return A;
 }
-
-
 
 CanvasTriangle triangleToCanvas(ModelTriangle t){
   CanvasPoint A = project3DPoint(t.vertices[0]);
@@ -405,7 +411,7 @@ void drawWireframes(vector<ModelTriangle> triangles){
     }
 }
 
-void drawModel(vector<ModelTriangle> triangles){
+void rasterizeModel(vector<ModelTriangle> triangles){
     vector<float> zArray = getEmptyZArray();
     for (int i = 0; i < triangles.size(); i++){
         ModelTriangle currentTriangle = triangles.at(i);
@@ -414,8 +420,6 @@ void drawModel(vector<ModelTriangle> triangles){
     }
 }
 
-
-
 vector<float> getEmptyZArray(){
     vector<float> a;
     for (int i = 0; i < WIDTH*HEIGHT; i++){
@@ -423,8 +427,6 @@ vector<float> getEmptyZArray(){
     }
     return a;
 }
-
-
 
 void rotateInX(float a){
 
@@ -451,8 +453,6 @@ void rotateInZ(float a){
     cameraOrientation = cameraOrientation * m;
 }
 
-
-
 void lookAt(vec4 p){
   vec3 forward = normalize(vec3(-cameraOrientation[3])  - vec3(p));
   vec3 right = normalize(cross(vec3(0,1,0), forward));
@@ -473,12 +473,14 @@ void printMat3(mat3 m){
     for (int y =0; y<3;y++){
         cout << "(" << m[y][0] << "," << m[y][1] << "," << m[y][2] << ")" << endl;
     }
+    cout << endl;
 }
 
 void printMat4(mat4 m){
     for (int y =0; y<4;y++){
         cout << "(" << m[y][0] << "," << m[y][1] << "," << m[y][2] << "," << m[y][3] << ")" << endl;
     }
+    cout << endl;
 }
 
 void printVec3(vec3 v){
@@ -496,24 +498,31 @@ void resetCamera(){
                                     -vec4(0,0,6,1));
 }
 
-bool solutionOnTriangle(vec4 i){
+bool solutionOnTriangle(vec3 i){
     return (0<=i.y && i.y<=1 && 0<=i.z && i.z<=1 && (i.y+i.z<=1));
 }
 
-void getClosestIntersection(vector<ModelTriangle> triangles, vec3 ray){
-    float closestDist = std::numeric_limits<float>::infinity();
+Colour getClosestIntersection(vector<ModelTriangle> triangles, vec3 ray){
+    float closestDist = -std::numeric_limits<float>::infinity();
+    int closestIndex = 0;
     for (int i=0; i<triangles.size(); i++){
         ModelTriangle triangle = triangles.at(i);
-        vec4 e0 = triangle.vertices[1] - triangle.vertices[0];
-        vec4 e1 = triangle.vertices[2] - triangle.vertices[0];
-        //CameraPos2 is in homogenous, everything else needs to be too
-        vec4 ray = cameraOrientation[3]-triangle.vertices[0];
-        mat4 DEMatrix(-ray, e0, e1,vec4(0,0,0,1));
-        vec4 possibleSolution = glm::inverse(DEMatrix) * ray;
+        vec3 e0 = vec3(triangle.vertices[1] - triangle.vertices[0]);
+        vec3 e1 = vec3(triangle.vertices[2] - triangle.vertices[0]);
+        //3rd column might be neg so might need to neg it
+        vec3 SPVector = vec3(-(cameraOrientation[3])-triangle.vertices[0]);
+        mat3 DEMatrix(-ray, e0, e1);
+
+        // if (glm::determinant(DEMatrix) == 0){
+        //     printMat4(cameraOrientation);
+        //     printMat3(DEMatrix);
+        // }
+        vec3 possibleSolution = glm::inverse(DEMatrix) * SPVector;
         if (solutionOnTriangle(possibleSolution)){
-            if (possibleSolution.x < closestDist){
+            if (possibleSolution.x > closestDist){
+                //New closest triangle
                 closestDist = possibleSolution.x;
-                //draw
+                closestIndex = i;
             } else {
                 //interscts & on triangle but not closest
             }
@@ -521,8 +530,25 @@ void getClosestIntersection(vector<ModelTriangle> triangles, vec3 ray){
             // not on triangle
         }
     }
+    if (!std::isinf( closestDist )){
+        return triangles.at(closestIndex).colour;
+    } else {
+        return Colour(0,0,0);
+    }
 }
 
+void raytraceModel(vector<ModelTriangle> triangles){
+    for(int y= 0; y< HEIGHT; y++){
+        for (int x = 0; x < WIDTH; x++){
+            float f = 250;
+            vec3 point = vec3(-(x-(WIDTH/2)), y-(HEIGHT/2), f);
+            point = 
+            vec3 ray = normalize(point -  vec3(-(cameraOrientation[3])));
+            Colour c = getClosestIntersection(triangles, ray );
+            window.setPixelColour(x, y, c.getPacked());
+        }
+    }
+}
 
 
 void handleEvent(SDL_Event event)
@@ -533,7 +559,6 @@ void handleEvent(SDL_Event event)
             cameraOrientation[3].x -= 0.5;
             cout << "left" << endl;
             printMat4(cameraOrientation);
-
         }
         else if(event.key.keysym.sym == SDLK_RIGHT) {
             //cameraPos.x -= 1;
@@ -612,11 +637,15 @@ void handleEvent(SDL_Event event)
         else if(event.key.keysym.sym == SDLK_p) {
             cout << "P" << endl;
             window.clearPixels();
-            drawModel(loadObj("cornell-box/cornell-box.obj"));
+            rasterizeModel(loadObj("cornell-box/cornell-box.obj"));
         }
         else if(event.key.keysym.sym == SDLK_r) {
             cout << "Reset" << endl;
             resetCamera();
+        }
+        else if(event.key.keysym.sym == SDLK_m) {
+            mode = (mode + 1) %2;
+            cout << "Mode:" << mode << endl;
         }
     }
     else if(event.type == SDL_MOUSEBUTTONDOWN) cout << "MOUSE CLICKED" << endl;
