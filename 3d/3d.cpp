@@ -45,8 +45,8 @@ void drawWireframes(vector<ModelTriangle> triangles);
 
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 
-//taken from light position in obj file slightly adjusted
-vec3 lightPosition(-0.5, 6.2185, -3.56797);
+//taken from light position in obj file
+vec3 lightPosition(-0.23232, 4.219334, -3.043678);
 mat3 cameraOrientation(vec3(1.0,0.0,0.0),vec3(0.0,1.0,0.0),vec3(0.0,0.0,1.0));
 vec3 cameraPosition(0,1,6);
 float focalLength = 250;
@@ -418,11 +418,25 @@ bool solutionOnTriangle(vec3 i){
     return (0<=i.y && i.y<=1 && 0<=i.z && i.z<=1 && (i.y+i.z<=1));
 }
 
+float getBrightness(vec3 normal, vec3 lightToIntersection){
+    float brightness = 2/(0.1f  * PI * length(lightToIntersection) * length(lightToIntersection));
+    float angleOI = dot(normalize(lightToIntersection),normalize(normal));
+    if (angleOI > 0.0f){
+        // the bigger the angle the closer to parallel the light ray
+        // and the normal are so the brighter the the point
+        brightness += (angleOI);
+    }
+    //ambient ligh threshold - is this it ??
+    // if(brightness < 0.2f){
+    //     brightness = 0.2f;
+    // }
+    return brightness;
+}
+
  RayTriangleIntersection getClosestIntersection(vector<ModelTriangle> triangles, vec3 ray){
     //float closestDist = -std::numeric_limits<float>::infinity();
     RayTriangleIntersection closestIntersection;
     closestIntersection.distanceFromCamera = -std::numeric_limits<float>::infinity();
-    int closestIndex = 0;
     for (int i=0; i<triangles.size(); i++){
         ModelTriangle triangle = triangles.at(i);
         vec3 e0 = vec3(triangle.vertices[1] - triangle.vertices[0]);
@@ -432,12 +446,18 @@ bool solutionOnTriangle(vec3 i){
         vec3 possibleSolution = glm::inverse(DEMatrix) * SPVector;
         if (solutionOnTriangle(possibleSolution)){
             if (possibleSolution.x > closestIntersection.distanceFromCamera){
-                closestIntersection.distanceFromCamera = possibleSolution.x;
                 vec3 intersection = triangle.vertices[0] + possibleSolution.y*e0 + possibleSolution.z*e1;
-                closestIntersection.intersectionPoint = intersection;
-                closestIntersection.intersectedTriangle = triangle;
-                closestIntersection.distanceFromLight = glm::length(lightPosition - intersection);
-                closestIndex = i;
+                vec3 lightToIntersection = lightPosition - intersection ;
+                closestIntersection.distanceFromLight = glm::length(lightToIntersection);
+                vec3 normal = glm::cross(e1,e0);
+                float brightness = getBrightness(normal,lightToIntersection);
+                if(brightness > 1.0f){
+                    brightness = 1.0f;
+                }
+                cout<< "brightness:" << brightness << endl;
+
+                Colour adjustedColour = Colour(triangle.colour.red, triangle.colour.green, triangle.colour.blue, brightness);
+                closestIntersection = RayTriangleIntersection(intersection, possibleSolution.x, triangle, adjustedColour);
             } else {
                 //interscts & on triangle but not closest
             }
@@ -446,12 +466,7 @@ bool solutionOnTriangle(vec3 i){
             // not on triangle
         }
     }
-
     return closestIntersection;
-
-    // else {
-    //     return Colour(0,0,0);
-    // }
 }
 
 void raytraceModel(vector<ModelTriangle> triangles){
@@ -465,19 +480,7 @@ void raytraceModel(vector<ModelTriangle> triangles){
             if (!std::isinf( intersection.distanceFromCamera )){
                 ModelTriangle triangle = intersection.intersectedTriangle;
                 if(lightingMode ==1){
-                    //normalize??
-                    float brightness = 2/(0.1f * PI * pow(intersection.distanceFromLight,2));
-                    //make use of brightness object later
-                    if(brightness > 1.0f){
-                        brightness = 1.0f;
-                    }
-                    cout << "brightness" << brightness << endl;
-                    Colour adjustedColour;
-                    // better way to do this probably
-                    adjustedColour.red = triangle.colour.red * brightness;
-                    adjustedColour.green = triangle.colour.green * brightness;
-                    adjustedColour.blue = triangle.colour.blue * brightness;
-                    window.setPixelColour(x,y, adjustedColour.getPacked());
+                    window.setPixelColour(x,y, intersection.intersectionPointColour.getPacked());
                 }
                 else{
                     window.setPixelColour(x, y, triangle.colour.getPacked());
@@ -568,31 +571,36 @@ void handleEvent(SDL_Event event)
         if(event.key.keysym.sym == SDLK_LEFT) {
             //cameraPos.x += 1;
             cameraPosition.x -=0.5;
+            lightPosition.x -=0.5;
             cout << "left" << endl;
         }
         else if(event.key.keysym.sym == SDLK_RIGHT) {
             //cameraPos.x -= 1;
             cameraPosition.x += 0.5;
+            // lightPosition.x +=0.5;
 
         }
         else if(event.key.keysym.sym == SDLK_UP) {
             //cameraPos.y -= 1;
             cameraPosition.y += 0.25;
+            // lightPosition.y +=0.25;
 
         }
         else if(event.key.keysym.sym == SDLK_DOWN) {
             //cameraPos.y += 1;
             cameraPosition.y -= 0.25;
+            // lightPosition.y -=0.25;
 
         }
         else if(event.key.keysym.sym == SDLK_RIGHTBRACKET) {
             //cameraPos.z += 1;
             cameraPosition.z += 0.5;
-
+            // lightPosition.z +=0.5;
         }
         else if(event.key.keysym.sym == SDLK_LEFTBRACKET) {
             //cameraPos.z -= 1;
             cameraPosition.z -= 0.5;
+            // lightPosition.z -=0.5;
         }
         else if(event.key.keysym.sym == SDLK_c) {
             cout << "C" << endl;

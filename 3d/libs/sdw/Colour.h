@@ -28,6 +28,12 @@ class Colour
       green = g;
       blue = b;
     }
+    Colour(int r, int g, int b, float brightness)
+    {
+      red = r * brightness;
+      green = g * brightness;
+      blue = b * brightness;
+    }
 
     Colour(std::string n, std::string r, std::string g, std::string b){
         name = n;

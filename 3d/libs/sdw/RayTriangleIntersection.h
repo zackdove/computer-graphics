@@ -1,6 +1,7 @@
 #include <glm/glm.hpp>
 #include <iostream>
 
+
 class RayTriangleIntersection
 {
   public:
@@ -8,9 +9,25 @@ class RayTriangleIntersection
     float distanceFromCamera;
     float distanceFromLight;
     ModelTriangle intersectedTriangle;
+    Colour intersectionPointColour;
 
     RayTriangleIntersection()
     {
+    }
+
+    RayTriangleIntersection(glm::vec3 point, float distance, ModelTriangle triangle)
+    {
+        intersectionPoint = point;
+        distanceFromCamera = distance;
+        intersectedTriangle = triangle;
+    }
+
+    RayTriangleIntersection(glm::vec3 point, float distance, ModelTriangle triangle, Colour colour)
+    {
+        intersectionPoint = point;
+        distanceFromCamera = distance;
+        intersectedTriangle = triangle;
+        intersectionPointColour = colour;
     }
 
     RayTriangleIntersection(glm::vec3 point, float distance, float lightDistance, ModelTriangle triangle)
