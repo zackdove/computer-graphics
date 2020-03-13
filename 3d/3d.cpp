@@ -419,17 +419,17 @@ bool solutionOnTriangle(vec3 i){
 }
 
 float getBrightness(vec3 normal, vec3 lightToIntersection){
-    float brightness = 2/(0.1f  * PI * length(lightToIntersection) * length(lightToIntersection));
+    float brightness = 1/(8  * PI * length(lightToIntersection) * length(lightToIntersection));
     float angleOI = dot(normalize(lightToIntersection),normalize(normal));
     if (angleOI > 0.0f){
         // the bigger the angle the closer to parallel the light ray
         // and the normal are so the brighter the the point
         brightness += (angleOI);
     }
-    //ambient ligh threshold - is this it ??
-    // if(brightness < 0.2f){
-    //     brightness = 0.2f;
-    // }
+    //ambient light threshold
+    if(brightness < 0.2f){
+        brightness = 0.2f;
+    }
     return brightness;
 }
 
@@ -449,13 +449,11 @@ float getBrightness(vec3 normal, vec3 lightToIntersection){
                 vec3 intersection = triangle.vertices[0] + possibleSolution.y*e0 + possibleSolution.z*e1;
                 vec3 lightToIntersection = lightPosition - intersection ;
                 closestIntersection.distanceFromLight = glm::length(lightToIntersection);
-                vec3 normal = glm::cross(e1,e0);
+                vec3 normal = glm::cross(e0,e1);
                 float brightness = getBrightness(normal,lightToIntersection);
                 if(brightness > 1.0f){
                     brightness = 1.0f;
                 }
-                cout<< "brightness:" << brightness << endl;
-
                 Colour adjustedColour = Colour(triangle.colour.red, triangle.colour.green, triangle.colour.blue, brightness);
                 closestIntersection = RayTriangleIntersection(intersection, possibleSolution.x, triangle, adjustedColour);
             } else {
