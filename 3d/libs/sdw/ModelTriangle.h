@@ -5,7 +5,7 @@
 class ModelTriangle
 {
   public:
-    glm::vec4 vertices[3];
+    glm::vec3 vertices[3];
     Colour colour;
     std::string objectName;
 
@@ -13,7 +13,7 @@ class ModelTriangle
     {
     }
 
-    ModelTriangle(glm::vec4 v0, glm::vec4 v1, glm::vec4 v2, Colour trigColour)
+    ModelTriangle(glm::vec3 v0, glm::vec3 v1, glm::vec3 v2, Colour trigColour)
     {
       vertices[0] = v0;
       vertices[1] = v1;
@@ -21,7 +21,7 @@ class ModelTriangle
       colour = trigColour;
     }
 
-    ModelTriangle(glm::vec4 v0, glm::vec4 v1, glm::vec4 v2, Colour trigColour, std::string o)
+    ModelTriangle(glm::vec3 v0, glm::vec3 v1, glm::vec3 v2, Colour trigColour, std::string o)
     {
       vertices[0] = v0;
       vertices[1] = v1;

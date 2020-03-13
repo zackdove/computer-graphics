@@ -44,27 +44,28 @@ void drawWireframes(vector<ModelTriangle> triangles);
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 
 
-//right, up, forward
-mat4 cameraOrientation = mat4(  vec4(1,0,0,0),
-vec4(0,1,0,0),
-vec4(0,0,1,0),
--vec4(0,1,6,1));
 
-//0=wait, 1=wireframes, 2=rasterize, 3=raytrace
+mat3 cameraOrientation(vec3(1.0,0.0,0.0),vec3(0.0,1.0,0.0),vec3(0.0,0.0,1.0));
+vec3 cameraPosition(0,1,6);
+float focalLength = 250;
+//0 =rasterize, 1=raytrace, 2= fuck u
 int mode = 1;
 
 
-int main(int argc, char* argv[]){
+int main(int argc, char* argv[])
+{
     vector<ModelTriangle> model = loadObj("cornell-box/cornell-box.obj");
 
     SDL_Event event;
-    while(true){
+    while(true)
+    {
         // We MUST poll for events - otherwise the window will freeze !
         if(window.pollForInputEvents(&event)) {
             handleEvent(event);
         }
         update();
         draw(model);
+
     }
 }
 
@@ -128,8 +129,6 @@ void drawRow(CanvasPoint from, CanvasPoint to, Colour colour, vector<float> &zAr
     if (from.x > to.x) swap(to, from);
     int y = round(from.y);
     int rowWidth = round(to.x-from.x);
-    // float fromDepth = (from.depth);
-    // float toDepth = (to.depth);
     for (int x = 0; x < rowWidth; x++){
         if ((y < HEIGHT) && (y >= 0)  && ((from.x+x) >=0) && ((from.x+x) < WIDTH-1) ){
             if (rowWidth == 1) rowWidth = 2;
@@ -323,7 +322,7 @@ vector<ModelTriangle> loadObj(string path){
     file.open(path);
     char space = char(32);
     vector<string> materialFileNames;
-    vector<vec4> points;
+    vector<vec3> points;
     vector<Colour> colours;
     vector<ModelTriangle> triangles;
     //Get vertices, and material files
@@ -335,7 +334,7 @@ vector<ModelTriangle> loadObj(string path){
             vector<Colour> newColours = loadMtl(items[1]);
             colours.insert(colours.end(), newColours.begin(), newColours.end() );
         } else if (!items[0].compare("v")){
-            vec4 point = vec4( stof(items[1]), stof(items[2]), stof(items[3]) , 1);
+            vec3 point = vec3( stof(items[1]), stof(items[2]), stof(items[3]));
             // vec3 point = vec3(1, 1, 1);
             points.push_back(point);
         }
@@ -377,32 +376,38 @@ vector<ModelTriangle> loadObj(string path){
 }
 
 CanvasPoint toImageCoords(CanvasPoint p){
-    int w = WIDTH / 2;
-    int h = HEIGHT / 2;
-    int xp = w + (p.x);
-    int yp = h + (p.y);
-    return CanvasPoint(xp, yp, p.depth);
+	int w = WIDTH / 2;
+	int h = HEIGHT / 2;
+	float xp = w + (p.x);
+	float yp = h + (p.y);
+	return CanvasPoint(xp, yp, p.depth);
 }
 
-CanvasPoint project3DPoint(vec4 p){
-    float focalLength = 250;
-    vec4 a = cameraOrientation*p;
-    float ratio = focalLength/a.z;
-    CanvasPoint A = CanvasPoint(-a.x*ratio, (a.y)*ratio, a.z);
-    return A;
+CanvasPoint project3DPoint(vec3 p){
+  vec3 a = cameraOrientation*p;
+  float ratio = -focalLength/a.z;
+  CanvasPoint A = CanvasPoint(a.x*ratio, (1-a.y)*ratio, a.z);
+  return A;
 }
 
 CanvasTriangle triangleToCanvas(ModelTriangle t){
-    CanvasPoint A = project3DPoint(t.vertices[0]);
-    CanvasPoint B = project3DPoint(t.vertices[1]);
-    CanvasPoint C = project3DPoint(t.vertices[2]);
-    A = toImageCoords(A);
-    B = toImageCoords(B);
-    C = toImageCoords(C);
-    CanvasTriangle projection = CanvasTriangle(A,B,C, t.colour);
-    return projection;
-}
+  CanvasTriangle projection;
+  for(int i = 0; i<3; i++){
+    float xWorld = t.vertices[i].x;
+    float yWorld = t.vertices[i].y;
+    float zWorld = t.vertices[i].z;
 
+    vec3 a(xWorld-cameraPosition.x,yWorld-cameraPosition.y, zWorld- cameraPosition.z);
+    a = a * cameraOrientation;
+    float ratio = focalLength/a.z;
+    int xp = -ratio*a.x + WIDTH/2;
+    int yp = ratio*(a.y) +HEIGHT/2;
+    CanvasPoint projectedPoint(xp,yp, a.z);
+    projection.vertices[i] = projectedPoint;
+    projection.colour = t.colour;
+  }
+  return projection;
+}
 void drawWireframes(vector<ModelTriangle> triangles){
     for (int i = 0; i < triangles.size(); i++){
         ModelTriangle currentTriangle = triangles.at(i);
@@ -430,43 +435,34 @@ vector<float> getEmptyZArray(){
 
 void rotateInX(float a){
 
-    mat4 m = mat4(vec4(1,      0,       0, 0),
-    vec4(0, cos(a), -sin(a), 0),
-    vec4(0, sin(a), cos(a),  0),
-    vec4(0, 0,0,1));
+    mat3 m = mat3(vec3(1,      0,       0),
+                  vec3(0, cos(a), -sin(a)),
+                  vec3(0, sin(a), cos(a)));
     cameraOrientation = cameraOrientation * m ;
 }
 
 void rotateInY(float a){
-    mat4 m = mat4(vec4(cos(a),  0, sin(a),0),
-    vec4(0,       1,      0,0),
-    vec4(-sin(a), 0, cos(a),0),
-    vec4(0,0,0,1));
+    mat3 m = mat3(vec3(cos(a),  0, sin(a)),
+                  vec3(0,       1,      0),
+                  vec3(-sin(a), 0, cos(a)));
     cameraOrientation = cameraOrientation * m ;
 }
 
 void rotateInZ(float a){
-    mat4 m = mat4(  vec4(cos(a), -sin(a), 0,0),
-    vec4(sin(a), cos(a), 0,0),
-    vec4(0, 0, 1,0),
-    vec4(0,0,0,1));
+    mat3 m = mat3(  vec3(cos(a), -sin(a), 0),
+                    vec3(sin(a), cos(a), 0),
+                    vec3(0, 0, 1));
     cameraOrientation = cameraOrientation * m;
 }
 
-void lookAt(vec4 p){
-    vec3 forward = normalize(vec3(-cameraOrientation[3])  - vec3(p));
-    vec3 right = normalize(cross(vec3(0,1,0), forward));
-    vec3 up = normalize(cross(forward, right));
-    cameraOrientation[0][0] = right.x;
-    cameraOrientation[1][0] = right.y;
-    cameraOrientation[2][0] = right.z;
-    cameraOrientation[0][1] = up.x;
-    cameraOrientation[1][1] = up.y;
-    cameraOrientation[2][1] = up.z;
-    cameraOrientation[0][2] = forward.x;
-    cameraOrientation[1][2] = forward.y;
-    cameraOrientation[2][2] = forward.z;
-    printMat4(cameraOrientation);
+void lookAt(vec3 p){
+  vec3 forward = normalize(cameraPosition - p);
+  vec3 right = normalize(cross(vec3(0,1,0), forward));
+  vec3 up = normalize(cross(forward, right));
+  cameraOrientation[0] = right;
+  cameraOrientation[1] = up;
+  cameraOrientation[2] = forward;
+  printMat3(cameraOrientation);
 }
 
 void printMat3(mat3 m){
@@ -484,18 +480,18 @@ void printMat4(mat4 m){
 }
 
 void printVec3(vec3 v){
-    cout << "(" << v[0] << "," << v[1] << "," << v[2] << ")" << endl;
+  cout << "(" << v[0] << "," << v[1] << "," << v[2] << ")" << endl;
 }
 void printVec4(vec4 v){
-    cout << "(" << v[0] << "," << v[1] << "," << v[2] << ","<< v[3] << ")" << endl;
+  cout << "(" << v[0] << "," << v[1] << "," << v[2] << ","<< v[3] << ")" << endl;
 }
 
 
 void resetCamera(){
-    cameraOrientation = mat4(  vec4(1,0,0,0),
-    vec4(0,1,0,0),
-    vec4(0,0,1,0),
-    -vec4(0,1,6,1));
+    cameraOrientation = mat3(       vec3(1,0,0),
+                                    vec3(0,1,0),
+                                    vec3(0,0,1));
+    cameraPosition = vec3(0,1,6);
 }
 
 bool solutionOnTriangle(vec3 i){
@@ -509,8 +505,7 @@ Colour getClosestIntersection(vector<ModelTriangle> triangles, vec3 ray){
         ModelTriangle triangle = triangles.at(i);
         vec3 e0 = vec3(triangle.vertices[1] - triangle.vertices[0]);
         vec3 e1 = vec3(triangle.vertices[2] - triangle.vertices[0]);
-        //3rd column might be neg so might need to neg it
-        vec3 SPVector = vec3(-(cameraOrientation[3])-triangle.vertices[0]);
+        vec3 SPVector = vec3(cameraPosition-triangle.vertices[0]);
         mat3 DEMatrix(-ray, e0, e1);
 
         // if (glm::determinant(DEMatrix) == 0){
@@ -520,7 +515,6 @@ Colour getClosestIntersection(vector<ModelTriangle> triangles, vec3 ray){
         vec3 possibleSolution = glm::inverse(DEMatrix) * SPVector;
         if (solutionOnTriangle(possibleSolution)){
             if (possibleSolution.x > closestDist){
-                //New closest triangle
                 closestDist = possibleSolution.x;
                 closestIndex = i;
             } else {
@@ -538,15 +532,12 @@ Colour getClosestIntersection(vector<ModelTriangle> triangles, vec3 ray){
 }
 
 void raytraceModel(vector<ModelTriangle> triangles){
-    // vec3 forward = cameraOrientation[2];
-    // vec3 right = cameraOrientation[0];
-    // vec3 up = cameraOrientation[1];
-
     for(int y= 0; y< HEIGHT; y++){
         for (int x = 0; x < WIDTH; x++){
-            float f = 250;
-            vec3 point = vec3(-(x-(WIDTH/2)), y-(HEIGHT/2), f) *glm::inverse(mat3(cameraOrientation));
-            vec3 ray = normalize(point -  vec3(-(cameraOrientation[3])));
+
+            vec3 point = vec3(-(x-(WIDTH/2)), y-(HEIGHT/2), focalLength);
+            vec3 ray = point-cameraPosition;
+            ray = normalize(ray * glm::inverse(cameraOrientation));
             Colour c = getClosestIntersection(triangles, ray );
             window.setPixelColour(x, y, c.getPacked());
         }
@@ -559,34 +550,32 @@ void handleEvent(SDL_Event event)
     if(event.type == SDL_KEYDOWN) {
         if(event.key.keysym.sym == SDLK_LEFT) {
             //cameraPos.x += 1;
-            cameraOrientation[3].x -= 0.5;
+            cameraPosition.x -=0.5;
             cout << "left" << endl;
-            printMat4(cameraOrientation);
         }
         else if(event.key.keysym.sym == SDLK_RIGHT) {
             //cameraPos.x -= 1;
-            cameraOrientation[3].x += 0.5;
-            printMat4(cameraOrientation);
+            cameraPosition.x += 0.5;
+
         }
         else if(event.key.keysym.sym == SDLK_UP) {
             //cameraPos.y -= 1;
-            cameraOrientation[3].y += 0.25;
-            printMat4(cameraOrientation);
+            cameraPosition.y += 0.25;
+
         }
         else if(event.key.keysym.sym == SDLK_DOWN) {
             //cameraPos.y += 1;
-            cameraOrientation[3].y -= 0.25;
-            printMat4(cameraOrientation);
+            cameraPosition.y -= 0.25;
+
         }
         else if(event.key.keysym.sym == SDLK_RIGHTBRACKET) {
             //cameraPos.z += 1;
-            cameraOrientation[3].z += 0.5;
-            printMat4(cameraOrientation);
+            cameraPosition.z += 0.5;
+
         }
         else if(event.key.keysym.sym == SDLK_LEFTBRACKET) {
             //cameraPos.z -= 1;
-            cameraOrientation[3].z -= 0.5;
-            printMat4(cameraOrientation);
+            cameraPosition.z -= 0.5;
         }
         else if(event.key.keysym.sym == SDLK_c) {
             cout << "C" << endl;
@@ -597,45 +586,39 @@ void handleEvent(SDL_Event event)
             float a = 5*PI/180;
             rotateInX(a);
             //printMat3(cameraOrientation);
-            printMat4(cameraOrientation);
         }
         else if(event.key.keysym.sym == SDLK_s) {
             cout << "S" << endl;
             float a = -5*PI/180;
             rotateInX(a);
             //printMat3(cameraOrientation);
-            printMat4(cameraOrientation);
         }
         else if(event.key.keysym.sym == SDLK_a) {
             cout << "A" << endl;
             float a = 5*PI/180;
             rotateInY(a);
-            printMat4(cameraOrientation);
         }
         else if(event.key.keysym.sym == SDLK_d) {
             cout << "D" << endl;
             float a = -5*PI/180;
             rotateInY(a);
             //printMat3(cameraOrientation);
-            printMat4(cameraOrientation);
         }
         else if(event.key.keysym.sym == SDLK_q) {
             cout << "Q" << endl;
             float a = 5*PI/180;
             rotateInZ(a);
-            printMat4(cameraOrientation);
         }
         else if(event.key.keysym.sym == SDLK_e) {
             cout << "E" << endl;
             float a = -5*PI/180;
             rotateInZ(a);
             //printMat3(cameraOrientation);
-            printMat4(cameraOrientation);
         }
         else if(event.key.keysym.sym == SDLK_l) {
             cout << "L" << endl;
             window.clearPixels();
-            lookAt(vec4(0, 0, 0, 0));
+            lookAt(vec3(0, 0, 0));
         }
         else if(event.key.keysym.sym == SDLK_p) {
             cout << "P" << endl;
