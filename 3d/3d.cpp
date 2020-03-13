@@ -1,6 +1,7 @@
 #include <ModelTriangle.h>
 #include <CanvasTriangle.h>
 #include <DrawingWindow.h>
+#include <RayTriangleIntersection.h>
 #include "Image.h"
 #include <Utils.h>
 #include <glm/glm.hpp>
@@ -41,16 +42,18 @@ void draw(vector<ModelTriangle> model);
 void raytraceModel(vector<ModelTriangle> model);
 void drawWireframes(vector<ModelTriangle> triangles);
 
+
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 
-
-
+//taken from light position in obj file slightly adjusted
+vec3 lightPosition(-0.5, 6.2185, -3.56797);
 mat3 cameraOrientation(vec3(1.0,0.0,0.0),vec3(0.0,1.0,0.0),vec3(0.0,0.0,1.0));
 vec3 cameraPosition(0,1,6);
 float focalLength = 250;
 //0 =rasterize, 1=raytrace, 2= fuck u
 int mode = 1;
-
+// 0 = no lighting, 1 = proximity
+int lightingMode = 1;
 
 int main(int argc, char* argv[])
 {
@@ -367,7 +370,6 @@ vector<ModelTriangle> loadObj(string path){
             int c = stoi(items[3]) -1;
             ModelTriangle t = ModelTriangle(points.at(a), points.at(b), points.at(c), currentColour, objectName);
             triangles.push_back(t);
-            // cout << t << endl;
         }
         if (file.eof() ) break;
     }
@@ -375,20 +377,6 @@ vector<ModelTriangle> loadObj(string path){
     return triangles;
 }
 
-CanvasPoint toImageCoords(CanvasPoint p){
-	int w = WIDTH / 2;
-	int h = HEIGHT / 2;
-	float xp = w + (p.x);
-	float yp = h + (p.y);
-	return CanvasPoint(xp, yp, p.depth);
-}
-
-CanvasPoint project3DPoint(vec3 p){
-  vec3 a = cameraOrientation*p;
-  float ratio = -focalLength/a.z;
-  CanvasPoint A = CanvasPoint(a.x*ratio, (1-a.y)*ratio, a.z);
-  return A;
-}
 
 CanvasTriangle triangleToCanvas(ModelTriangle t){
   CanvasTriangle projection;
@@ -408,6 +396,7 @@ CanvasTriangle triangleToCanvas(ModelTriangle t){
   }
   return projection;
 }
+
 void drawWireframes(vector<ModelTriangle> triangles){
     for (int i = 0; i < triangles.size(); i++){
         ModelTriangle currentTriangle = triangles.at(i);
@@ -422,6 +411,81 @@ void rasterizeModel(vector<ModelTriangle> triangles){
         ModelTriangle currentTriangle = triangles.at(i);
         CanvasTriangle t = triangleToCanvas(currentTriangle);
         drawFilledTriangle(t, zArray);
+    }
+}
+
+bool solutionOnTriangle(vec3 i){
+    return (0<=i.y && i.y<=1 && 0<=i.z && i.z<=1 && (i.y+i.z<=1));
+}
+
+ RayTriangleIntersection getClosestIntersection(vector<ModelTriangle> triangles, vec3 ray){
+    //float closestDist = -std::numeric_limits<float>::infinity();
+    RayTriangleIntersection closestIntersection;
+    closestIntersection.distanceFromCamera = -std::numeric_limits<float>::infinity();
+    int closestIndex = 0;
+    for (int i=0; i<triangles.size(); i++){
+        ModelTriangle triangle = triangles.at(i);
+        vec3 e0 = vec3(triangle.vertices[1] - triangle.vertices[0]);
+        vec3 e1 = vec3(triangle.vertices[2] - triangle.vertices[0]);
+        vec3 SPVector = vec3(cameraPosition-triangle.vertices[0]);
+        mat3 DEMatrix(-ray, e0, e1);
+        vec3 possibleSolution = glm::inverse(DEMatrix) * SPVector;
+        if (solutionOnTriangle(possibleSolution)){
+            if (possibleSolution.x > closestIntersection.distanceFromCamera){
+                closestIntersection.distanceFromCamera = possibleSolution.x;
+                vec3 intersection = triangle.vertices[0] + possibleSolution.y*e0 + possibleSolution.z*e1;
+                closestIntersection.intersectionPoint = intersection;
+                closestIntersection.intersectedTriangle = triangle;
+                closestIntersection.distanceFromLight = glm::length(lightPosition - intersection);
+                closestIndex = i;
+            } else {
+                //interscts & on triangle but not closest
+            }
+        }
+        else {
+            // not on triangle
+        }
+    }
+
+    return closestIntersection;
+
+    // else {
+    //     return Colour(0,0,0);
+    // }
+}
+
+void raytraceModel(vector<ModelTriangle> triangles){
+    for(int y= 0; y< HEIGHT; y++){
+        for (int x = 0; x < WIDTH; x++){
+
+            vec3 point = vec3(-(x-(WIDTH/2)), y-(HEIGHT/2), focalLength);
+            vec3 ray = point-cameraPosition;
+            ray = normalize(ray * glm::inverse(cameraOrientation));
+            RayTriangleIntersection intersection = getClosestIntersection(triangles, ray );
+            if (!std::isinf( intersection.distanceFromCamera )){
+                ModelTriangle triangle = intersection.intersectedTriangle;
+                if(lightingMode ==1){
+                    //normalize??
+                    float brightness = 2/(0.1f * PI * pow(intersection.distanceFromLight,2));
+                    //make use of brightness object later
+                    if(brightness > 1.0f){
+                        brightness = 1.0f;
+                    }
+                    cout << "brightness" << brightness << endl;
+                    Colour adjustedColour;
+                    // better way to do this probably
+                    adjustedColour.red = triangle.colour.red * brightness;
+                    adjustedColour.green = triangle.colour.green * brightness;
+                    adjustedColour.blue = triangle.colour.blue * brightness;
+                    window.setPixelColour(x,y, adjustedColour.getPacked());
+                }
+                else{
+                    window.setPixelColour(x, y, triangle.colour.getPacked());
+                }
+
+            }
+
+        }
     }
 }
 
@@ -465,6 +529,14 @@ void lookAt(vec3 p){
   printMat3(cameraOrientation);
 }
 
+void resetCamera(){
+    cameraOrientation = mat3(       vec3(1,0,0),
+                                    vec3(0,1,0),
+                                    vec3(0,0,1));
+    cameraPosition = vec3(0,1,6);
+}
+
+
 void printMat3(mat3 m){
     for (int y =0; y<3;y++){
         cout << "(" << m[y][0] << "," << m[y][1] << "," << m[y][2] << ")" << endl;
@@ -487,62 +559,7 @@ void printVec4(vec4 v){
 }
 
 
-void resetCamera(){
-    cameraOrientation = mat3(       vec3(1,0,0),
-                                    vec3(0,1,0),
-                                    vec3(0,0,1));
-    cameraPosition = vec3(0,1,6);
-}
 
-bool solutionOnTriangle(vec3 i){
-    return (0<=i.y && i.y<=1 && 0<=i.z && i.z<=1 && (i.y+i.z<=1));
-}
-
-Colour getClosestIntersection(vector<ModelTriangle> triangles, vec3 ray){
-    float closestDist = -std::numeric_limits<float>::infinity();
-    int closestIndex = 0;
-    for (int i=0; i<triangles.size(); i++){
-        ModelTriangle triangle = triangles.at(i);
-        vec3 e0 = vec3(triangle.vertices[1] - triangle.vertices[0]);
-        vec3 e1 = vec3(triangle.vertices[2] - triangle.vertices[0]);
-        vec3 SPVector = vec3(cameraPosition-triangle.vertices[0]);
-        mat3 DEMatrix(-ray, e0, e1);
-
-        // if (glm::determinant(DEMatrix) == 0){
-        //     printMat4(cameraOrientation);
-        //     printMat3(DEMatrix);
-        // }
-        vec3 possibleSolution = glm::inverse(DEMatrix) * SPVector;
-        if (solutionOnTriangle(possibleSolution)){
-            if (possibleSolution.x > closestDist){
-                closestDist = possibleSolution.x;
-                closestIndex = i;
-            } else {
-                //interscts & on triangle but not closest
-            }
-        } else {
-            // not on triangle
-        }
-    }
-    if (!std::isinf( closestDist )){
-        return triangles.at(closestIndex).colour;
-    } else {
-        return Colour(0,0,0);
-    }
-}
-
-void raytraceModel(vector<ModelTriangle> triangles){
-    for(int y= 0; y< HEIGHT; y++){
-        for (int x = 0; x < WIDTH; x++){
-
-            vec3 point = vec3(-(x-(WIDTH/2)), y-(HEIGHT/2), focalLength);
-            vec3 ray = point-cameraPosition;
-            ray = normalize(ray * glm::inverse(cameraOrientation));
-            Colour c = getClosestIntersection(triangles, ray );
-            window.setPixelColour(x, y, c.getPacked());
-        }
-    }
-}
 
 
 void handleEvent(SDL_Event event)
