@@ -46,7 +46,7 @@ void drawWireframes(vector<ModelTriangle> triangles);
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 
 //taken from light position in obj file
-vec3 lightPosition(-0.23232, 5.219334, -3.043678);
+vec3 lightPosition(-0.23232, 5.22, -3.043678);
 mat3 cameraOrientation(vec3(1.0,0.0,0.0),vec3(0.0,1.0,0.0),vec3(0.0,0.0,1.0));
 vec3 cameraPosition(0,1,6);
 float focalLength = 250;
@@ -419,27 +419,27 @@ bool solutionOnTriangle(vec3 i){
 }
 
 float getBrightness(vec3 normal, vec3 lightToIntersection, vec3 ray){
-    float brightness = 1/(8  * PI * length(lightToIntersection) * length(lightToIntersection));
+    float brightness = 1/(0.1f * PI * length(lightToIntersection) * length(lightToIntersection));
     if (lightingMode == 1){
 
         float angleOI = dot(normalize(lightToIntersection),normalize(normal));
-        if (angleOI > 0.0f){
+        if (angleOI > 0){
             // the bigger the angle the closer to parallel the light ray
             // and the normal are so the brighter the the point
             brightness += angleOI;
         }
     }
     //specular light calcs from http://paulbourke.net/geometry/reflected/
-    // else if (lightingMode == 2){
-    //     //POV needs to point towards us
-    //     vec3 flippedRay = -1.0f* ray;
-    //     //do i need to normalize the normal?
-    //     vec3 reflected = lightToIntersection - (2.0f *normalize(normal) * dot(lightToIntersection,normalize(normal)));
-    //     float angleRV = dot( normalize(flippedRay), normalize(reflected));
-    //     if (angleRV > 0.0f){
-    //         brightness += pow(angleRV, 1.0f);
-    //     }
-    // }
+    else if (lightingMode == 2){
+        //POV needs to point towards us
+        vec3 flippedRay = -1.0f* ray;
+        //do i need to normalize the normal?
+        vec3 reflected = lightToIntersection - (2.0f *normalize(normal) * dot(lightToIntersection,normalize(normal)));
+        float angleRV = dot( normalize(flippedRay), normalize(reflected));
+        if (angleRV > 0.0f){
+            brightness += pow(angleRV, 1.0f);
+        }
+    }
     //ambient light threshold
     if(brightness < 0.3f){
         brightness = 0.3f;
@@ -448,11 +448,12 @@ float getBrightness(vec3 normal, vec3 lightToIntersection, vec3 ray){
 
     return brightness;
 }
-// add option to check its not itself
+
 bool inHardShadow(vector<ModelTriangle> triangles, vec3 point, int currentTriangleIndex){
     // reverse the direction?
-    vec3 shadowRay = lightPosition - point;
+    vec3 shadowRay = normalize(lightPosition - point);
     bool inShadow = false;
+    //
     float distanceFromLight = glm::length(shadowRay);
     //add loop optimisation
     for(int i=0; i<triangles.size(); i++){
@@ -460,14 +461,12 @@ bool inHardShadow(vector<ModelTriangle> triangles, vec3 point, int currentTriang
         vec3 e0 = vec3(triangle.vertices[1] - triangle.vertices[0]);
         vec3 e1 = vec3(triangle.vertices[2] - triangle.vertices[0]);
         vec3 SPVector = vec3(point-triangle.vertices[0]);
-        mat3 DEMatrix(-normalize(shadowRay), e0, e1);
+        mat3 DEMatrix(-shadowRay, e0, e1);
         vec3 possibleSolution = glm::inverse(DEMatrix) * SPVector;
         float t = possibleSolution.x;
         // ignore intersections that are close to the surface
-        // whats the 0.4f for??
-        if(solutionOnTriangle(possibleSolution) && t > 0.4f && (i != currentTriangleIndex)){
-            //ignore the close ones?
-            if(t < distanceFromLight && abs(t-distanceFromLight) > 0.01f){
+        if(solutionOnTriangle(possibleSolution) && (i != currentTriangleIndex)){
+            if(t < distanceFromLight && (abs(t-distanceFromLight) > 0.001f)){
                 inShadow = true;
                 break;
             }
@@ -498,10 +497,10 @@ bool inHardShadow(vector<ModelTriangle> triangles, vec3 point, int currentTriang
                 if(brightness > 1.0f){
                     brightness = 1.0f;
                 }
-                // bool inShadow = inHardShadow(triangles, intersection, i);
-                // if(inShadow){
-                //     brightness = 0.2f;
-                // }
+                bool inShadow = inHardShadow(triangles, intersection, i);
+                if(inShadow){
+                    brightness = 0.2f;
+                }
                 Colour adjustedColour = Colour(triangle.colour.red, triangle.colour.green, triangle.colour.blue, brightness);
                 closestIntersection = RayTriangleIntersection(intersection, possibleSolution.x, triangle, adjustedColour);
             } else {
