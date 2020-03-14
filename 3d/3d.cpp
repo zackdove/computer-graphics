@@ -46,7 +46,7 @@ void drawWireframes(vector<ModelTriangle> triangles);
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 
 //taken from light position in obj file
-vec3 lightPosition(-0.23232, 4.219334, -3.043678);
+vec3 lightPosition(-0.23232, 5.219334, -3.043678);
 mat3 cameraOrientation(vec3(1.0,0.0,0.0),vec3(0.0,1.0,0.0),vec3(0.0,0.0,1.0));
 vec3 cameraPosition(0,1,6);
 float focalLength = 250;
@@ -418,19 +418,63 @@ bool solutionOnTriangle(vec3 i){
     return (0<=i.y && i.y<=1 && 0<=i.z && i.z<=1 && (i.y+i.z<=1));
 }
 
-float getBrightness(vec3 normal, vec3 lightToIntersection){
+float getBrightness(vec3 normal, vec3 lightToIntersection, vec3 ray){
     float brightness = 1/(8  * PI * length(lightToIntersection) * length(lightToIntersection));
-    float angleOI = dot(normalize(lightToIntersection),normalize(normal));
-    if (angleOI > 0.0f){
-        // the bigger the angle the closer to parallel the light ray
-        // and the normal are so the brighter the the point
-        brightness += (angleOI);
+    if (lightingMode == 1){
+
+        float angleOI = dot(normalize(lightToIntersection),normalize(normal));
+        if (angleOI > 0.0f){
+            // the bigger the angle the closer to parallel the light ray
+            // and the normal are so the brighter the the point
+            brightness += angleOI;
+        }
     }
+    //specular light calcs from http://paulbourke.net/geometry/reflected/
+    // else if (lightingMode == 2){
+    //     //POV needs to point towards us
+    //     vec3 flippedRay = -1.0f* ray;
+    //     //do i need to normalize the normal?
+    //     vec3 reflected = lightToIntersection - (2.0f *normalize(normal) * dot(lightToIntersection,normalize(normal)));
+    //     float angleRV = dot( normalize(flippedRay), normalize(reflected));
+    //     if (angleRV > 0.0f){
+    //         brightness += pow(angleRV, 1.0f);
+    //     }
+    // }
     //ambient light threshold
-    if(brightness < 0.2f){
-        brightness = 0.2f;
+    if(brightness < 0.3f){
+        brightness = 0.3f;
     }
+
+
     return brightness;
+}
+// add option to check its not itself
+bool inHardShadow(vector<ModelTriangle> triangles, vec3 point, int currentTriangleIndex){
+    // reverse the direction?
+    vec3 shadowRay = lightPosition - point;
+    bool inShadow = false;
+    float distanceFromLight = glm::length(shadowRay);
+    //add loop optimisation
+    for(int i=0; i<triangles.size(); i++){
+        ModelTriangle triangle = triangles.at(i);
+        vec3 e0 = vec3(triangle.vertices[1] - triangle.vertices[0]);
+        vec3 e1 = vec3(triangle.vertices[2] - triangle.vertices[0]);
+        vec3 SPVector = vec3(point-triangle.vertices[0]);
+        mat3 DEMatrix(-normalize(shadowRay), e0, e1);
+        vec3 possibleSolution = glm::inverse(DEMatrix) * SPVector;
+        float t = possibleSolution.x;
+        // ignore intersections that are close to the surface
+        // whats the 0.4f for??
+        if(solutionOnTriangle(possibleSolution) && t > 0.4f && (i != currentTriangleIndex)){
+            //ignore the close ones?
+            if(t < distanceFromLight && abs(t-distanceFromLight) > 0.01f){
+                inShadow = true;
+                break;
+            }
+        }
+
+    }
+    return inShadow;
 }
 
  RayTriangleIntersection getClosestIntersection(vector<ModelTriangle> triangles, vec3 ray){
@@ -450,10 +494,14 @@ float getBrightness(vec3 normal, vec3 lightToIntersection){
                 vec3 lightToIntersection = lightPosition - intersection ;
                 closestIntersection.distanceFromLight = glm::length(lightToIntersection);
                 vec3 normal = glm::cross(e0,e1);
-                float brightness = getBrightness(normal,lightToIntersection);
+                float brightness = getBrightness(normal,lightToIntersection, ray);
                 if(brightness > 1.0f){
                     brightness = 1.0f;
                 }
+                // bool inShadow = inHardShadow(triangles, intersection, i);
+                // if(inShadow){
+                //     brightness = 0.2f;
+                // }
                 Colour adjustedColour = Colour(triangle.colour.red, triangle.colour.green, triangle.colour.blue, brightness);
                 closestIntersection = RayTriangleIntersection(intersection, possibleSolution.x, triangle, adjustedColour);
             } else {
@@ -477,13 +525,7 @@ void raytraceModel(vector<ModelTriangle> triangles){
             RayTriangleIntersection intersection = getClosestIntersection(triangles, ray );
             if (!std::isinf( intersection.distanceFromCamera )){
                 ModelTriangle triangle = intersection.intersectedTriangle;
-                if(lightingMode ==1){
-                    window.setPixelColour(x,y, intersection.intersectionPointColour.getPacked());
-                }
-                else{
-                    window.setPixelColour(x, y, triangle.colour.getPacked());
-                }
-
+                window.setPixelColour(x,y, intersection.intersectionPointColour.getPacked());
             }
 
         }
