@@ -46,7 +46,7 @@ void drawWireframes(vector<ModelTriangle> triangles);
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 
 //taken from light position in obj file
-vec3 lightPosition(-0.23232, 5.22, -3.043678);
+vec3 lightPosition(-0.23232, 5.219, -3.043678);
 mat3 cameraOrientation(vec3(1.0,0.0,0.0),vec3(0.0,1.0,0.0),vec3(0.0,0.0,1.0));
 vec3 cameraPosition(0,1,6);
 float focalLength = 250;
@@ -415,11 +415,11 @@ void rasterizeModel(vector<ModelTriangle> triangles){
 }
 
 bool solutionOnTriangle(vec3 i){
-    return (0<=i.y && i.y<=1 && 0<=i.z && i.z<=1 && (i.y+i.z<=1));
+    return (0.0<=i.y && i.y<=1.0 && 0.0<=i.z && i.z<=1.0 && (i.y+i.z<=1.0));
 }
 
 float getBrightness(vec3 normal, vec3 lightToIntersection, vec3 ray){
-    float brightness = 1/(0.1f * PI * length(lightToIntersection) * length(lightToIntersection));
+    float brightness = 1/(0.1f * PI * pow(length(lightToIntersection),2));
     if (lightingMode == 1){
 
         float angleOI = dot(normalize(lightToIntersection),normalize(normal));
@@ -441,17 +441,17 @@ float getBrightness(vec3 normal, vec3 lightToIntersection, vec3 ray){
         }
     }
     //ambient light threshold
-    if(brightness < 0.3f){
-        brightness = 0.3f;
+    if(brightness < 0.2f){
+        brightness = 0.2f;
     }
 
 
     return brightness;
 }
 
-bool inHardShadow(vector<ModelTriangle> triangles, vec3 point, int currentTriangleIndex){
+bool inHardShadow(vector<ModelTriangle> triangles, vec3 surfacePoint, int currentTriangleIndex){
     // reverse the direction?
-    vec3 shadowRay = normalize(lightPosition - point);
+    vec3 shadowRay = lightPosition-surfacePoint;
     bool inShadow = false;
     //
     float distanceFromLight = glm::length(shadowRay);
@@ -460,18 +460,19 @@ bool inHardShadow(vector<ModelTriangle> triangles, vec3 point, int currentTriang
         ModelTriangle triangle = triangles.at(i);
         vec3 e0 = vec3(triangle.vertices[1] - triangle.vertices[0]);
         vec3 e1 = vec3(triangle.vertices[2] - triangle.vertices[0]);
-        vec3 SPVector = vec3(point-triangle.vertices[0]);
-        mat3 DEMatrix(-shadowRay, e0, e1);
+        vec3 SPVector = vec3(surfacePoint-triangle.vertices[0]);
+        mat3 DEMatrix(-glm::normalize(shadowRay), e0, e1);
         vec3 possibleSolution = glm::inverse(DEMatrix) * SPVector;
         float t = possibleSolution.x;
+        cout << "t: " << t << endl;
+        cout << "distance from light:" << distanceFromLight << endl;
         // ignore intersections that are close to the surface
         if(solutionOnTriangle(possibleSolution) && (i != currentTriangleIndex)){
-            if(t < distanceFromLight && (abs(t-distanceFromLight) > 0.001f)){
+            if(t < (distanceFromLight)){
                 inShadow = true;
                 break;
             }
         }
-
     }
     return inShadow;
 }
@@ -479,7 +480,7 @@ bool inHardShadow(vector<ModelTriangle> triangles, vec3 point, int currentTriang
  RayTriangleIntersection getClosestIntersection(vector<ModelTriangle> triangles, vec3 ray){
     //float closestDist = -std::numeric_limits<float>::infinity();
     RayTriangleIntersection closestIntersection;
-    closestIntersection.distanceFromCamera = -std::numeric_limits<float>::infinity();
+    closestIntersection.distanceFromCamera = std::numeric_limits<float>::infinity();
     for (int i=0; i<triangles.size(); i++){
         ModelTriangle triangle = triangles.at(i);
         vec3 e0 = vec3(triangle.vertices[1] - triangle.vertices[0]);
@@ -488,10 +489,11 @@ bool inHardShadow(vector<ModelTriangle> triangles, vec3 point, int currentTriang
         mat3 DEMatrix(-ray, e0, e1);
         vec3 possibleSolution = glm::inverse(DEMatrix) * SPVector;
         if (solutionOnTriangle(possibleSolution)){
-            if (possibleSolution.x > closestIntersection.distanceFromCamera){
+            if (possibleSolution.x < closestIntersection.distanceFromCamera){
+
                 vec3 intersection = triangle.vertices[0] + possibleSolution.y*e0 + possibleSolution.z*e1;
                 vec3 lightToIntersection = lightPosition - intersection ;
-                closestIntersection.distanceFromLight = glm::length(lightToIntersection);
+                //closestIntersection.distanceFromLight = glm::length(lightToIntersection);
                 vec3 normal = glm::cross(e0,e1);
                 float brightness = getBrightness(normal,lightToIntersection, ray);
                 if(brightness > 1.0f){
@@ -499,7 +501,7 @@ bool inHardShadow(vector<ModelTriangle> triangles, vec3 point, int currentTriang
                 }
                 bool inShadow = inHardShadow(triangles, intersection, i);
                 if(inShadow){
-                    brightness = 0.2f;
+                    brightness = 0.15f;
                 }
                 Colour adjustedColour = Colour(triangle.colour.red, triangle.colour.green, triangle.colour.blue, brightness);
                 closestIntersection = RayTriangleIntersection(intersection, possibleSolution.x, triangle, adjustedColour);
@@ -518,8 +520,8 @@ void raytraceModel(vector<ModelTriangle> triangles){
     for(int y= 0; y< HEIGHT; y++){
         for (int x = 0; x < WIDTH; x++){
 
-            vec3 point = vec3(-(x-(WIDTH/2)), y-(HEIGHT/2), focalLength);
-            vec3 ray = point-cameraPosition;
+            vec3 point = vec3(WIDTH/2 -x, y-(HEIGHT/2), focalLength);
+            vec3 ray = cameraPosition - point;
             ray = normalize(ray * glm::inverse(cameraOrientation));
             RayTriangleIntersection intersection = getClosestIntersection(triangles, ray );
             if (!std::isinf( intersection.distanceFromCamera )){
@@ -610,36 +612,26 @@ void handleEvent(SDL_Event event)
         if(event.key.keysym.sym == SDLK_LEFT) {
             //cameraPos.x += 1;
             cameraPosition.x -=0.5;
-            lightPosition.x -=0.5;
+            //lightPosition.x -=0.5;
             cout << "left" << endl;
         }
         else if(event.key.keysym.sym == SDLK_RIGHT) {
-            //cameraPos.x -= 1;
             cameraPosition.x += 0.5;
-            // lightPosition.x +=0.5;
 
         }
         else if(event.key.keysym.sym == SDLK_UP) {
-            //cameraPos.y -= 1;
             cameraPosition.y += 0.25;
-            // lightPosition.y +=0.25;
 
         }
         else if(event.key.keysym.sym == SDLK_DOWN) {
-            //cameraPos.y += 1;
             cameraPosition.y -= 0.25;
-            // lightPosition.y -=0.25;
 
         }
         else if(event.key.keysym.sym == SDLK_RIGHTBRACKET) {
-            //cameraPos.z += 1;
             cameraPosition.z += 0.5;
-            // lightPosition.z +=0.5;
         }
         else if(event.key.keysym.sym == SDLK_LEFTBRACKET) {
-            //cameraPos.z -= 1;
             cameraPosition.z -= 0.5;
-            // lightPosition.z -=0.5;
         }
         else if(event.key.keysym.sym == SDLK_c) {
             cout << "C" << endl;
