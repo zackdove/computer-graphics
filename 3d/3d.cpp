@@ -46,7 +46,7 @@ void drawWireframes(vector<ModelTriangle> triangles);
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 
 //taken from light position in obj file
-vec3 lightPosition(-0.23232, 5.219, -3.043678);
+vec3 lightPosition(-0.23232, 5, -3.043678);
 mat3 cameraOrientation(vec3(1.0,0.0,0.0),vec3(0.0,1.0,0.0),vec3(0.0,0.0,1.0));
 vec3 cameraPosition(0,1,6);
 float focalLength = 250;
@@ -464,10 +464,10 @@ bool inHardShadow(vector<ModelTriangle> triangles, vec3 surfacePoint, int curren
         mat3 DEMatrix(-glm::normalize(shadowRay), e0, e1);
         vec3 possibleSolution = glm::inverse(DEMatrix) * SPVector;
         float t = possibleSolution.x;
-        cout << "t: " << t << endl;
-        cout << "distance from light:" << distanceFromLight << endl;
+        // cout << "t: " << t << endl;
+        // cout << "distance from light:" << distanceFromLight << endl;
         // ignore intersections that are close to the surface
-        if(solutionOnTriangle(possibleSolution) && (i != currentTriangleIndex)){
+        if(solutionOnTriangle(possibleSolution) && (i != currentTriangleIndex) && t>0.01f){
             if(t < (distanceFromLight)){
                 inShadow = true;
                 break;
@@ -492,7 +492,7 @@ bool inHardShadow(vector<ModelTriangle> triangles, vec3 surfacePoint, int curren
             if (possibleSolution.x < closestIntersection.distanceFromCamera){
 
                 vec3 intersection = triangle.vertices[0] + possibleSolution.y*e0 + possibleSolution.z*e1;
-                vec3 lightToIntersection = lightPosition - intersection ;
+                vec3 lightToIntersection = lightPosition - intersection;
                 //closestIntersection.distanceFromLight = glm::length(lightToIntersection);
                 vec3 normal = glm::cross(e0,e1);
                 float brightness = getBrightness(normal,lightToIntersection, ray);
