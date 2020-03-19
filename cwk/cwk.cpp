@@ -47,7 +47,7 @@ void drawWireframes(vector<ModelTriangle> triangles);
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 
 //taken from light position in obj file
-vec3 lightPosition(-0.23232, 5, -3.043678);
+vec3 lightPosition(-0.2334011,4,-3.043968);
 mat3 cameraOrientation(vec3(1.0,0.0,0.0),vec3(0.0,1.0,0.0),vec3(0.0,0.0,1.0));
 vec3 cameraPosition(0,1,6);
 float focalLength = 250;
@@ -427,14 +427,14 @@ bool solutionOnTriangle(vec3 i){
 }
 
 float getBrightness(vec3 normal, vec3 lightToIntersection, vec3 ray){
-    float brightness = 1/(0.1f * PI * pow(length(lightToIntersection),2));
+    float brightness = 3/(0.1f * PI * pow(length(lightToIntersection),2));
     if (lightingMode == 1){
 
         float angleOI = dot(normalize(lightToIntersection),normalize(normal));
-        if (angleOI > 0){
+        if (angleOI > 0 && angleOI <=1){
             // the bigger the angle the closer to parallel the light ray
             // and the normal are so the brighter the the point
-            brightness += angleOI;
+            brightness *= angleOI;
         }
     }
     //specular light calcs from http://paulbourke.net/geometry/reflected/
@@ -544,16 +544,16 @@ void raytraceModelAA(vector<ModelTriangle> triangles){
             vec3 point = vec3(WIDTH/2 -x, y-(HEIGHT/2), focalLength);
             vec3 ray = cameraPosition - point;
             // try changing both x and y -- not really quincux otherwise
-            vec3 rayTopLeft = vec3(ray.x-0.5, ray.y-0.5, ray.z);
-            vec3 rayTopRight = vec3(ray.x+0.5, ray.y-0.5, ray.z);
-            vec3 rayBottomLeft = vec3(ray.x-0.5, ray.y+0.5, ray.z);
-            vec3 rayBottomRight = vec3(ray.x+0.5, ray.y+0.5, ray.z);
+            vec3 rayTopLeft = vec3(ray.x-0.5, ray.y, ray.z);
+            vec3 rayTopRight = vec3(ray.x+0.5, ray.y, ray.z);
+            vec3 rayBottomLeft = vec3(ray.x, ray.y-0.5, ray.z);
+            vec3 rayBottomRight = vec3(ray.x, ray.y+0.5, ray.z);
 
             ray = normalize(ray * glm::inverse(cameraOrientation));
             rayTopLeft = normalize(rayTopLeft* glm::inverse(cameraOrientation));
-            rayTopRight = normalize(rayTopLeft* glm::inverse(cameraOrientation));
-            rayBottomLeft = normalize(rayTopLeft* glm::inverse(cameraOrientation));
-            rayBottomRight = normalize(rayTopLeft* glm::inverse(cameraOrientation));
+            rayTopRight = normalize(rayTopRight* glm::inverse(cameraOrientation));
+            rayBottomLeft = normalize(rayBottomLeft* glm::inverse(cameraOrientation));
+            rayBottomRight = normalize(rayBottomRight* glm::inverse(cameraOrientation));
 
             RayTriangleIntersection intersection = getClosestIntersection(triangles, ray);
             RayTriangleIntersection intersectionTL = getClosestIntersection(triangles, rayTopLeft);
@@ -564,9 +564,9 @@ void raytraceModelAA(vector<ModelTriangle> triangles){
             if (!std::isinf( intersection.distanceFromCamera )){
                 Colour average;
                 // find a nicer way to do this
-                average.red = (intersection.intersectionPointColour.red + intersectionTL.intersectionPointColour.red + intersectionTR.intersectionPointColour.red + intersectionBL.intersectionPointColour.red + intersectionBR.intersectionPointColour.red)/5.0f;
-                average.green = (intersection.intersectionPointColour.green + intersectionTL.intersectionPointColour.green + intersectionTR.intersectionPointColour.green + intersectionBL.intersectionPointColour.green + intersectionBR.intersectionPointColour.green)/5.0f;
-                average.blue = (intersection.intersectionPointColour.blue + intersectionTL.intersectionPointColour.blue + intersectionTR.intersectionPointColour.blue + intersectionBL.intersectionPointColour.blue + intersectionBR.intersectionPointColour.blue)/5.0f;
+                average.red = (intersection.intersectionPointColour.red + intersectionTL.intersectionPointColour.red + intersectionTR.intersectionPointColour.red + intersectionBL.intersectionPointColour.red + intersectionBR.intersectionPointColour.red)/5.0;
+                average.green = (intersection.intersectionPointColour.green + intersectionTL.intersectionPointColour.green + intersectionTR.intersectionPointColour.green + intersectionBL.intersectionPointColour.green + intersectionBR.intersectionPointColour.green)/5.0;
+                average.blue = (intersection.intersectionPointColour.blue + intersectionTL.intersectionPointColour.blue + intersectionTR.intersectionPointColour.blue + intersectionBL.intersectionPointColour.blue + intersectionBR.intersectionPointColour.blue)/5.0;
                 window.setPixelColour(x,y, average.getPacked());
             }
         }
