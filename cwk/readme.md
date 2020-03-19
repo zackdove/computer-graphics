@@ -19,7 +19,7 @@ The final grade awarded will depend upon the exact combination and features and 
 * ~~Ambient lighting~~
 * ~~Diffuse lighting (proximity and angle-of-incidence)~~
 
-### To get into 60s you must ALSO implement SOME of…
+### To get into 60s you must ALSO implement SOME of…
 * Gouraud shading
 * Naive (non-perspective corrected) texture mapping
 * Simple animation (e.g. fly-through)

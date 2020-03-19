@@ -40,6 +40,7 @@ void printMat4(mat4 m);
 void printVec4(vec4 v);
 void draw(vector<ModelTriangle> model);
 void raytraceModel(vector<ModelTriangle> model);
+void raytraceModelAA(vector<ModelTriangle> triangles);
 void drawWireframes(vector<ModelTriangle> triangles);
 
 
@@ -50,7 +51,7 @@ vec3 lightPosition(-0.23232, 5, -3.043678);
 mat3 cameraOrientation(vec3(1.0,0.0,0.0),vec3(0.0,1.0,0.0),vec3(0.0,0.0,1.0));
 vec3 cameraPosition(0,1,6);
 float focalLength = 250;
-//0 =rasterize, 1=raytrace, 2= fuck u
+//1 = wireframe, 2 = rasterize, 3 = raytrace, 4 = raytrace + AA
 int mode = 1;
 // 0 = no lighting, 1 = proximity
 int lightingMode = 1;
@@ -82,6 +83,11 @@ void draw(vector<ModelTriangle> model){
 
         } else if(mode==3){
             raytraceModel(model);
+            cout << "Model raytraced, waiting for user enter" << endl;
+            mode = 0;
+        }
+        else if(mode==4){
+            raytraceModelAA(model);
             cout << "Model raytraced, waiting for user enter" << endl;
             mode = 0;
         }
@@ -528,9 +534,43 @@ void raytraceModel(vector<ModelTriangle> triangles){
         }
     }
 }
-//currently supersampling
+//currently supersampling -- basic
 // complex - FXAA http://blog.simonrodriguez.fr/articles/30-07-2016_implementing_fxaa.html
+// or quasi monte carlo sampling
 void raytraceModelAA(vector<ModelTriangle> triangles){
+    //Quincux sampling
+    for(int y = 0; y < HEIGHT; y++){
+        for (int x = 0; x < WIDTH; x++ ){
+            vec3 point = vec3(WIDTH/2 -x, y-(HEIGHT/2), focalLength);
+            vec3 ray = cameraPosition - point;
+            // try changing both x and y -- not really quincux otherwise
+            vec3 rayTopLeft = vec3(ray.x-0.5, ray.y-0.5, ray.z);
+            vec3 rayTopRight = vec3(ray.x+0.5, ray.y-0.5, ray.z);
+            vec3 rayBottomLeft = vec3(ray.x-0.5, ray.y+0.5, ray.z);
+            vec3 rayBottomRight = vec3(ray.x+0.5, ray.y+0.5, ray.z);
+
+            ray = normalize(ray * glm::inverse(cameraOrientation));
+            rayTopLeft = normalize(rayTopLeft* glm::inverse(cameraOrientation));
+            rayTopRight = normalize(rayTopLeft* glm::inverse(cameraOrientation));
+            rayBottomLeft = normalize(rayTopLeft* glm::inverse(cameraOrientation));
+            rayBottomRight = normalize(rayTopLeft* glm::inverse(cameraOrientation));
+
+            RayTriangleIntersection intersection = getClosestIntersection(triangles, ray);
+            RayTriangleIntersection intersectionTL = getClosestIntersection(triangles, rayTopLeft);
+            RayTriangleIntersection intersectionTR = getClosestIntersection(triangles, rayTopRight);
+            RayTriangleIntersection intersectionBL = getClosestIntersection(triangles, rayBottomLeft);
+            RayTriangleIntersection intersectionBR = getClosestIntersection(triangles, rayBottomRight);
+
+            if (!std::isinf( intersection.distanceFromCamera )){
+                Colour average;
+                // find a nicer way to do this
+                average.red = (intersection.intersectionPointColour.red + intersectionTL.intersectionPointColour.red + intersectionTR.intersectionPointColour.red + intersectionBL.intersectionPointColour.red + intersectionBR.intersectionPointColour.red)/5.0f;
+                average.green = (intersection.intersectionPointColour.green + intersectionTL.intersectionPointColour.green + intersectionTR.intersectionPointColour.green + intersectionBL.intersectionPointColour.green + intersectionBR.intersectionPointColour.green)/5.0f;
+                average.blue = (intersection.intersectionPointColour.blue + intersectionTL.intersectionPointColour.blue + intersectionTR.intersectionPointColour.blue + intersectionBL.intersectionPointColour.blue + intersectionBR.intersectionPointColour.blue)/5.0f;
+                window.setPixelColour(x,y, average.getPacked());
+            }
+        }
+    }
 
 }
 
@@ -701,6 +741,10 @@ void handleEvent(SDL_Event event)
         else if(event.key.keysym.sym == SDLK_3) {
             mode = 3;
             cout << "Raytrace:" << endl;
+        }
+        else if(event.key.keysym.sym == SDLK_4) {
+            mode = 4;
+            cout << "Raytrace + AA:" << endl;
         }
     }
     else if(event.type == SDL_MOUSEBUTTONDOWN) cout << "MOUSE CLICKED" << endl;
