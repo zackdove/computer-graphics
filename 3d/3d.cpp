@@ -450,10 +450,8 @@ float getBrightness(vec3 normal, vec3 lightToIntersection, vec3 ray){
 }
 
 bool inHardShadow(vector<ModelTriangle> triangles, vec3 surfacePoint, int currentTriangleIndex){
-    // reverse the direction?
     vec3 shadowRay = lightPosition-surfacePoint;
     bool inShadow = false;
-    //
     float distanceFromLight = glm::length(shadowRay);
     //add loop optimisation
     for(int i=0; i<triangles.size(); i++){
@@ -464,9 +462,6 @@ bool inHardShadow(vector<ModelTriangle> triangles, vec3 surfacePoint, int curren
         mat3 DEMatrix(-glm::normalize(shadowRay), e0, e1);
         vec3 possibleSolution = glm::inverse(DEMatrix) * SPVector;
         float t = possibleSolution.x;
-        // cout << "t: " << t << endl;
-        // cout << "distance from light:" << distanceFromLight << endl;
-        // ignore intersections that are close to the surface
         if(solutionOnTriangle(possibleSolution) && (i != currentTriangleIndex) && t>0.01f){
             if(t < (distanceFromLight)){
                 inShadow = true;
@@ -519,7 +514,6 @@ bool inHardShadow(vector<ModelTriangle> triangles, vec3 surfacePoint, int curren
 void raytraceModel(vector<ModelTriangle> triangles){
     for(int y= 0; y< HEIGHT; y++){
         for (int x = 0; x < WIDTH; x++){
-
             vec3 point = vec3(WIDTH/2 -x, y-(HEIGHT/2), focalLength);
             vec3 ray = cameraPosition - point;
             ray = normalize(ray * glm::inverse(cameraOrientation));
@@ -531,6 +525,10 @@ void raytraceModel(vector<ModelTriangle> triangles){
 
         }
     }
+}
+
+void raytraceModelAA(vector<ModelTriangle> triangles){
+
 }
 
 vector<float> getEmptyZArray(){
