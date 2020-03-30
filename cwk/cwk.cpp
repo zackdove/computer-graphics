@@ -546,7 +546,6 @@ bool inHardShadow(vector<ModelTriangle> triangles, vec3 surfacePoint, int curren
         if(solutionOnTriangle(possibleSolution) && (i != currentTriangleIndex) && t>0.001f){
             if(t < (distanceFromLight)){
                 inShadow = true;
-                break;
             }
         }
     }
@@ -555,7 +554,6 @@ bool inHardShadow(vector<ModelTriangle> triangles, vec3 surfacePoint, int curren
 
 float getSoftShadow(vec3 surfaceNormal, vec3 surfacePoint, vector<ModelTriangle> triangles, int currentTriangleIndex){
     float shadeValue = 0.0f;
-    float shift = 0.1f;
     float shadowCount = 0.0f;
     for(int i=0; i<lightPositions.size(); i++){
         if(inHardShadow(triangles, surfacePoint,currentTriangleIndex,lightPositions.at(i))){
@@ -596,11 +594,10 @@ float getSoftShadow(vec3 surfaceNormal, vec3 surfacePoint, vector<ModelTriangle>
                     float shadeValue = getSoftShadow(normal, intersection, triangles, i);
                     float shadeProp = 1 - shadeValue;
                     brightness *= shadeProp;
-                    //brightness -= pow(shadeValue,2);
-                    // cout << "brightness after" << brightness <<  endl;
                     if(brightness < 0.15){
                         brightness = 0.15f;
                     }
+
                 }
                 if(brightness > 1.0f){
                     brightness = 1.0f;

@@ -9,6 +9,7 @@ WINDOW_OBJECT = libs/sdw/DrawingWindow.o
 
 # Build settings
 COMPILER = g++
+COMPILER_CLANG = clang++
 COMPILER_OPTIONS = -c -pipe -Wall -std=c++11
 DEBUG_OPTIONS = -ggdb -g3
 FUSSY_OPTIONS = -Werror -pedantic
@@ -53,7 +54,7 @@ speedy: window
 	./$(EXECUTABLE)
 
 # Rule to build for high performance executable
-speedyspeedy: window
+vfast: window
 	$(COMPILER_CLANG) -Xpreprocessor -fopenmp $(COMPILER_OPTIONS) $(SPEEDY_OPTIONS) -lomp -o  $(OBJECT_FILE) $(SOURCE_FILE) $(SDL_COMPILER_FLAGS) $(SDW_COMPILER_FLAGS) $(GLM_COMPILER_FLAGS)
 	$(COMPILER) -Xpreprocessor -fopenmp $(LINKER_OPTIONS) $(SPEEDY_OPTIONS) -lomp -o  $(EXECUTABLE) $(OBJECT_FILE) $(SDW_LINKER_FLAGS) $(SDL_LINKER_FLAGS)
 	./$(EXECUTABLE)
