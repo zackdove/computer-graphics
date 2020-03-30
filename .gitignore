@@ -44,6 +44,8 @@ Testing/*
 # Test input
 test/gtc/*.dds
 
+.DS_Store
+
 # Project Files
 *.cbp
 *.user

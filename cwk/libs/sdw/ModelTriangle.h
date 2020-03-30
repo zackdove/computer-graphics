@@ -37,6 +37,7 @@ std::ostream& operator<<(std::ostream& os, const ModelTriangle& triangle)
     os << "(" << triangle.vertices[1].x << ", " << triangle.vertices[1].y << ", " << triangle.vertices[1].z << ")" << std::endl;
     os << "(" << triangle.vertices[2].x << ", " << triangle.vertices[2].y << ", " << triangle.vertices[2].z << ")" << std::endl;
     os << "Colour" << triangle.colour << std::endl;
+    os << "Object" << triangle.objectName << std::endl;
     //os << "Object" << triangle.objectName << std::endl;
     os << std::endl;
     return os;

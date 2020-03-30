@@ -25,7 +25,7 @@ The final grade awarded will depend upon the exact combination and features and 
 * Simple animation (e.g. fly-through)
 * Some form of Physics (gravity, friction, bounce etc)
 * Basic culling (far-plane, near-plan, back-face)
-* Basic anti-aliasing
+* ~~Basic anti-aliasing~~(quincux)
 
 ### To get into 70s you must ALSO implement SOME of…
 * Phong Shading
@@ -33,7 +33,7 @@ The final grade awarded will depend upon the exact combination and features and 
 * Complex anti-aliasing
 * Perspective corrected texture mapping
 * “Fancy” animation
-* Soft shadow
+* ~~Soft shadow~~
 * Bump maps
 * Environment maps
 * Basic clipping (bounding box)

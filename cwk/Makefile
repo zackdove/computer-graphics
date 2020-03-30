@@ -52,6 +52,12 @@ speedy: window
 	$(COMPILER) $(LINKER_OPTIONS) $(SPEEDY_OPTIONS) -o $(EXECUTABLE) $(OBJECT_FILE) $(SDL_LINKER_FLAGS) $(SDW_LINKER_FLAGS)
 	./$(EXECUTABLE)
 
+# Rule to build for high performance executable
+speedyspeedy: window
+	$(COMPILER_CLANG) -Xpreprocessor -fopenmp $(COMPILER_OPTIONS) $(SPEEDY_OPTIONS) -lomp -o  $(OBJECT_FILE) $(SOURCE_FILE) $(SDL_COMPILER_FLAGS) $(SDW_COMPILER_FLAGS) $(GLM_COMPILER_FLAGS)
+	$(COMPILER) -Xpreprocessor -fopenmp $(LINKER_OPTIONS) $(SPEEDY_OPTIONS) -lomp -o  $(EXECUTABLE) $(OBJECT_FILE) $(SDW_LINKER_FLAGS) $(SDL_LINKER_FLAGS)
+	./$(EXECUTABLE)
+
 # Rule for building the DisplayWindow
 window:
 	$(COMPILER) $(COMPILER_OPTIONS) -o $(WINDOW_OBJECT) $(WINDOW_SOURCE) $(SDL_COMPILER_FLAGS) $(GLM_COMPILER_FLAGS)

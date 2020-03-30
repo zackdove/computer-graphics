@@ -42,6 +42,7 @@ void draw(vector<ModelTriangle> model);
 void raytraceModel(vector<ModelTriangle> model);
 void raytraceModelAA(vector<ModelTriangle> triangles);
 void drawWireframes(vector<ModelTriangle> triangles);
+void initialiseLights(vector<ModelTriangle>triangles, int numberOfLights);
 
 
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
@@ -53,13 +54,20 @@ vec3 cameraPosition(0,1,6);
 float focalLength = 250;
 //1 = wireframe, 2 = rasterize, 3 = raytrace, 4 = raytrace + AA
 int mode = 1;
-// 0 = no lighting, 1 = proximity
+// 0 = no lighting, 1 = proximity, 2 = specular
 int lightingMode = 1;
+// 0 = hard shadows, 1 = soft shadows
+int shadowMode = 1;
+vector<vec3> lightPositions;
 
 int main(int argc, char* argv[])
 {
     vector<ModelTriangle> model = loadObj("cornell-box/cornell-box.obj");
-
+    initialiseLights(model, 10);
+    for(int i=0; i<lightPositions.size(); i++){
+        // solution for now
+        lightPositions.at(i).y = lightPositions.at(i).y - 0.5f;
+    }
     SDL_Event event;
     while(true)
     {
@@ -78,6 +86,7 @@ void draw(vector<ModelTriangle> model){
         window.clearPixels();
         if (mode==1){
             drawWireframes(model);
+
         } else if(mode==2){
             rasterizeModel(model);
 
@@ -88,15 +97,15 @@ void draw(vector<ModelTriangle> model){
         }
         else if(mode==4){
             raytraceModelAA(model);
-            cout << "Model raytraced, waiting for user enter" << endl;
+            cout << "AA Model raytraced, waiting for user enter" << endl;
             mode = 0;
         }
         window.renderFrame();
     }
 }
 
-void update()
-{
+void update(){
+
 
     // Function for performing animation (shifting artifacts or moving the camera)
 }
@@ -120,7 +129,6 @@ void drawStrokeTriangle(CanvasTriangle t){
     drawLine(t.vertices[0], t.vertices[2], t.colour);
     drawLine(t.vertices[1], t.vertices[2], t.colour);
 }
-
 
 
 void drawFilledTriangle(CanvasTriangle t, vector<float> &zArray){
@@ -163,9 +171,6 @@ vector<CanvasPoint> interpolateRow(CanvasPoint start, CanvasPoint end, int steps
         p.x = start.x+((end.x-start.x)*i/(steps-1));
         p.y = start.y+((end.y-start.y)*i/(steps-1));
         p.depth = start.depth+((end.depth-start.depth)*i/(steps-1));
-        // cout << "R " << v.x << endl;
-        // cout << "G " << v.y << endl;
-        // cout << "B " << v.z << endl;
         points.push_back(p);
     }
     return points;
@@ -355,11 +360,11 @@ vector<ModelTriangle> loadObj(string path){
     //Get triangles, and their objects & materials, reset file pointer first
     file.clear();
     file.seekg(0, ios::beg);
+    string objectName;
     while (true){
         string line;
         getline(file, line);
         string* items = split(line, space);
-        string objectName;
         string materialName;
         Colour currentColour;
         if (!items[0].compare("o")){
@@ -425,43 +430,111 @@ void rasterizeModel(vector<ModelTriangle> triangles){
 bool solutionOnTriangle(vec3 i){
     return (0.0<=i.y && i.y<=1.0 && 0.0<=i.z && i.z<=1.0 && (i.y+i.z<=1.0));
 }
+// find min and max verices in all axes
+// interpolate light positions in 3 axes
+void initialiseLights(vector<ModelTriangle>triangles, int numberOfLights){
+    vector<ModelTriangle> lightTriangles;
+    //change these if necessary
+    float minX = 9999;
+    float maxX = -9999;
+    float minY = 9999;
+    float maxY = -9999;
+    float minZ = 9999;
+    float maxZ = -9999;
+    for(int i=0; i<triangles.size(); i++){
+        ModelTriangle t = triangles.at(i);
+        if(!t.objectName.compare("light")){
+            //surely theres a better way to do this??
+            // comparing vectors somehow
+            for (int j=0; j<3; j++){
+                if(t.vertices[j].x < minX){
+                    minX = t.vertices[j].x;
+                }
+                if(t.vertices[j].y < minY){
+                    minY = t.vertices[j].y;
+                }
+                if(t.vertices[j].z < minZ){
+                    minZ = t.vertices[j].z;
+                }
+                //max
+                if(t.vertices[j].x > maxX){
+                    maxX = t.vertices[j].x;
+                }
+                if(t.vertices[j].y > maxY){
+                    maxY = t.vertices[j].y;
+                }
+                if(t.vertices[j].z > maxZ){
+                    maxZ= t.vertices[j].z;
+                }
+            }
+        }
+    }
+    //vector<vec3> lightDiagonals;
+    vector<vec3> bottomLights;
+    vector<vec3> rightLights;
+    vector<vec3> leftLights;
+    vector<vec3> topLights;
+    for(int x=0; x<numberOfLights; x++){
+        vec3 p;
+        p.x = minX +((maxX-minX)*x/(numberOfLights-1));
+        p.y = minY +((maxY-minY)*x/(numberOfLights-1));
+        p.z = minZ +((maxZ-minZ)*x/(numberOfLights-1));
+        bottomLights.push_back(vec3(p.x, p.y, minZ));
+        topLights.push_back(vec3(p.x, p.y, maxZ));
+        leftLights.push_back(vec3(minX, p.y, p.z));
+        rightLights.push_back(vec3(maxX, p.y, p.z));
+    }
+    for(int j=0; j<leftLights.size(); j++){
+        vec3 left = leftLights.at(j);
+        vec3 right = rightLights.at(j);
+        for(int k=0; k<numberOfLights;k++){
+            vec3 light;
+            light.x = left.x +((right.x-left.x)*k/(numberOfLights-1));
+            light.y = left.y +((right.y-left.y)*k/(numberOfLights-1));
+            light.z = left.z +((right.z-left.z)*k/(numberOfLights-1));
+            cout << "(" << light.x << ", " << light.y << ", " << light.z << ")" << endl;
+            lightPositions.push_back(light);
+        }
+    }
+    cout << "number of lights: " << lightPositions.size() << endl;
+}
+
 
 float getBrightness(vec3 normal, vec3 lightToIntersection, vec3 ray){
-    float brightness = 3/(0.1f * PI * pow(length(lightToIntersection),2));
-    if (lightingMode == 1){
+    float brightness = 1/(4 * PI * pow(length(lightToIntersection),2));
+    // if (lightingMode == 1){
 
-        float angleOI = dot(normalize(lightToIntersection),normalize(normal));
-        if (angleOI > 0 && angleOI <=1){
-            // the bigger the angle the closer to parallel the light ray
-            // and the normal are so the brighter the the point
-            brightness *= angleOI;
-        }
+    float angleOI = dot(normalize(lightToIntersection),normalize(normal));
+    if (angleOI > 0){
+        // the bigger the angle the closer to parallel the light ray
+        // and the normal are so the brighter the the point
+        brightness += angleOI;
     }
+    // }
     //specular light calcs from http://paulbourke.net/geometry/reflected/
-    else if (lightingMode == 2){
+    // else if (lightingMode == 2){
         //POV needs to point towards us
-        vec3 flippedRay = -1.0f* ray;
-        //do i need to normalize the normal?
-        vec3 reflected = lightToIntersection - (2.0f *normalize(normal) * dot(lightToIntersection,normalize(normal)));
-        float angleRV = dot( normalize(flippedRay), normalize(reflected));
-        if (angleRV > 0.0f){
-            brightness += pow(angleRV, 1.0f);
-        }
+    vec3 flippedRay = -1.0f* ray;
+    //do i need to normalize the normal?
+    vec3 reflected = lightToIntersection - (2.0f *normalize(normal) * dot(lightToIntersection,normalize(normal)));
+    float angleRV = dot( normalize(flippedRay), normalize(reflected));
+    if (angleRV > 0.0f){
+        brightness += pow(angleRV, 24.0f);
     }
+    // }
     //ambient light threshold
-    if(brightness < 0.2f){
-        brightness = 0.2f;
+    if(brightness < 0.15f){
+        brightness = 0.15f;
     }
-
-
     return brightness;
 }
 
-bool inHardShadow(vector<ModelTriangle> triangles, vec3 surfacePoint, int currentTriangleIndex){
-    vec3 shadowRay = lightPosition-surfacePoint;
+bool inHardShadow(vector<ModelTriangle> triangles, vec3 surfacePoint, int currentTriangleIndex, vec3 light){
+    vec3 shadowRay = light-surfacePoint;
     bool inShadow = false;
     float distanceFromLight = glm::length(shadowRay);
-    //add loop optimisation
+#pragma omp parallel
+#pragma omp for
     for(int i=0; i<triangles.size(); i++){
         ModelTriangle triangle = triangles.at(i);
         vec3 e0 = vec3(triangle.vertices[1] - triangle.vertices[0]);
@@ -470,7 +543,7 @@ bool inHardShadow(vector<ModelTriangle> triangles, vec3 surfacePoint, int curren
         mat3 DEMatrix(-glm::normalize(shadowRay), e0, e1);
         vec3 possibleSolution = glm::inverse(DEMatrix) * SPVector;
         float t = possibleSolution.x;
-        if(solutionOnTriangle(possibleSolution) && (i != currentTriangleIndex) && t>0.01f){
+        if(solutionOnTriangle(possibleSolution) && (i != currentTriangleIndex) && t>0.001f){
             if(t < (distanceFromLight)){
                 inShadow = true;
                 break;
@@ -480,10 +553,24 @@ bool inHardShadow(vector<ModelTriangle> triangles, vec3 surfacePoint, int curren
     return inShadow;
 }
 
+float getSoftShadow(vec3 surfaceNormal, vec3 surfacePoint, vector<ModelTriangle> triangles, int currentTriangleIndex){
+    float shadeValue = 0.0f;
+    float shift = 0.1f;
+    float shadowCount = 0.0f;
+    for(int i=0; i<lightPositions.size(); i++){
+        if(inHardShadow(triangles, surfacePoint,currentTriangleIndex,lightPositions.at(i))){
+            shadowCount ++;
+        }
+    }
+    shadeValue = shadowCount/lightPositions.size();
+    return shadeValue;
+}
+
  RayTriangleIntersection getClosestIntersection(vector<ModelTriangle> triangles, vec3 ray){
-    //float closestDist = -std::numeric_limits<float>::infinity();
     RayTriangleIntersection closestIntersection;
     closestIntersection.distanceFromCamera = std::numeric_limits<float>::infinity();
+#pragma omp parallel
+#pragma omp for
     for (int i=0; i<triangles.size(); i++){
         ModelTriangle triangle = triangles.at(i);
         vec3 e0 = vec3(triangle.vertices[1] - triangle.vertices[0]);
@@ -499,13 +586,26 @@ bool inHardShadow(vector<ModelTriangle> triangles, vec3 surfacePoint, int curren
                 //closestIntersection.distanceFromLight = glm::length(lightToIntersection);
                 vec3 normal = glm::cross(e0,e1);
                 float brightness = getBrightness(normal,lightToIntersection, ray);
+                if(shadowMode == 0){
+                    bool inShadow = inHardShadow(triangles, intersection, i, lightPosition);
+                    if(inShadow){
+                        brightness = 0.15f;
+                    }
+                }
+                else if(shadowMode == 1){
+                    float shadeValue = getSoftShadow(normal, intersection, triangles, i);
+                    float shadeProp = 1 - shadeValue;
+                    brightness *= shadeProp;
+                    //brightness -= pow(shadeValue,2);
+                    // cout << "brightness after" << brightness <<  endl;
+                    if(brightness < 0.15){
+                        brightness = 0.15f;
+                    }
+                }
                 if(brightness > 1.0f){
                     brightness = 1.0f;
                 }
-                bool inShadow = inHardShadow(triangles, intersection, i);
-                if(inShadow){
-                    brightness = 0.15f;
-                }
+
                 Colour adjustedColour = Colour(triangle.colour.red, triangle.colour.green, triangle.colour.blue, brightness);
                 closestIntersection = RayTriangleIntersection(intersection, possibleSolution.x, triangle, adjustedColour);
             } else {
@@ -520,6 +620,8 @@ bool inHardShadow(vector<ModelTriangle> triangles, vec3 surfacePoint, int curren
 }
 
 void raytraceModel(vector<ModelTriangle> triangles){
+#pragma omp parallel
+#pragma omp for
     for(int y= 0; y< HEIGHT; y++){
         for (int x = 0; x < WIDTH; x++){
             vec3 point = vec3(WIDTH/2 -x, y-(HEIGHT/2), focalLength);
@@ -538,7 +640,9 @@ void raytraceModel(vector<ModelTriangle> triangles){
 // complex - FXAA http://blog.simonrodriguez.fr/articles/30-07-2016_implementing_fxaa.html
 // or quasi monte carlo sampling
 void raytraceModelAA(vector<ModelTriangle> triangles){
-    //Quincux sampling
+//Quincux sampling
+#pragma omp parallel
+#pragma omp for
     for(int y = 0; y < HEIGHT; y++){
         for (int x = 0; x < WIDTH; x++ ){
             vec3 point = vec3(WIDTH/2 -x, y-(HEIGHT/2), focalLength);
@@ -564,14 +668,13 @@ void raytraceModelAA(vector<ModelTriangle> triangles){
             if (!std::isinf( intersection.distanceFromCamera )){
                 Colour average;
                 // find a nicer way to do this
-                average.red = (intersection.intersectionPointColour.red + intersectionTL.intersectionPointColour.red + intersectionTR.intersectionPointColour.red + intersectionBL.intersectionPointColour.red + intersectionBR.intersectionPointColour.red)/5.0;
-                average.green = (intersection.intersectionPointColour.green + intersectionTL.intersectionPointColour.green + intersectionTR.intersectionPointColour.green + intersectionBL.intersectionPointColour.green + intersectionBR.intersectionPointColour.green)/5.0;
-                average.blue = (intersection.intersectionPointColour.blue + intersectionTL.intersectionPointColour.blue + intersectionTR.intersectionPointColour.blue + intersectionBL.intersectionPointColour.blue + intersectionBR.intersectionPointColour.blue)/5.0;
+                average.red = (intersection.intersectionPointColour.red*1.4 + intersectionTL.intersectionPointColour.red*0.9 + intersectionTR.intersectionPointColour.red*0.9 + intersectionBL.intersectionPointColour.red*0.9 + intersectionBR.intersectionPointColour.red*0.9)/5.0;
+                average.green = (intersection.intersectionPointColour.green*1.4 + intersectionTL.intersectionPointColour.green*0.9 + intersectionTR.intersectionPointColour.green*0.9 + intersectionBL.intersectionPointColour.green*0.9 + intersectionBR.intersectionPointColour.green*0.9)/5.0;
+                average.blue = (intersection.intersectionPointColour.blue*1.4 + intersectionTL.intersectionPointColour.blue*0.9 + intersectionTR.intersectionPointColour.blue*0.9 + intersectionBL.intersectionPointColour.blue*0.9 + intersectionBR.intersectionPointColour.blue*0.9)/5.0;
                 window.setPixelColour(x,y, average.getPacked());
             }
         }
     }
-
 }
 
 vector<float> getEmptyZArray(){
