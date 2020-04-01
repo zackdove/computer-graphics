@@ -9,7 +9,7 @@ The final grade awarded will depend upon the exact combination and features and 
 * ~~Wireframe rendering~~
 * ~~Flat shaded rasterising~~
 * ~~Moving camera (position only)~~
-* Saving of PPM files
+* ~~Saving of PPM files~~
 
 ### To get into 50s you must ALSO implement SOME of…
 * ~~Changing camera orientation (via orientation matrix)~~
