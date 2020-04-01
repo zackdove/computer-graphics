@@ -49,3 +49,4 @@ test/gtc/*.dds
 # Project Files
 *.cbp
 *.user
+cwk/cwk

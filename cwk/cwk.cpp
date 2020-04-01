@@ -29,6 +29,7 @@ void drawStrokeTriangle(CanvasTriangle t);
 void drawRandomTriangle(bool filled);
 void drawFilledTriangle(CanvasTriangle t, vector<float> &zArray);
 Image loadImage();
+void savePPM();
 void createTextureTriangle();
 vector<float> getEmptyZArray();
 vector<ModelTriangle> loadObj(string path);
@@ -208,6 +209,34 @@ Image loadImage(){
     return i;
 }
 
+void savePPM(){
+    char red;
+    char green;
+    char blue;
+    uint32_t pixel;
+    //add to_string(n) for different frame numbers
+    string filename = "./frames/frame.ppm";
+    ofstream out(filename, std::ios::out | std::ios::binary);
+    if(!out){
+        std::cerr << "Cannot open:" << filename << endl;
+        exit(1);
+    }
+    out << "P6\n";
+    out << "# Created by zackdrei\n";
+	out << to_string(WIDTH) << " " << to_string(HEIGHT) << "\n";
+	out << "255\n";
+    for(int y=0; y<HEIGHT; y++){
+        for(int x=0; x<WIDTH; x++){
+            pixel = window.getPixelColour(x,y);
+            red = char((pixel >> 16 ) & 255);
+			green = char((pixel >> 8) & 255);
+			blue = char((pixel & 255));
+			out << red << green << blue;
+        }
+    }
+    out.close();
+    cout << "saved" << endl;
+}
 
 void displayImage(){
     Image image = loadImage();
@@ -492,7 +521,7 @@ void initialiseLights(vector<ModelTriangle>triangles, int numberOfLights){
             light.x = left.x +((right.x-left.x)*k/(numberOfLights-1));
             light.y = left.y +((right.y-left.y)*k/(numberOfLights-1));
             light.z = left.z +((right.z-left.z)*k/(numberOfLights-1));
-            cout << "(" << light.x << ", " << light.y << ", " << light.z << ")" << endl;
+            //cout << "(" << light.x << ", " << light.y << ", " << light.z << ")" << endl;
             lightPositions.push_back(light);
         }
     }
@@ -817,11 +846,11 @@ void handleEvent(SDL_Event event)
             window.clearPixels();
             lookAt(vec3(0, 0, 0));
         }
-        else if(event.key.keysym.sym == SDLK_p) {
-            cout << "P" << endl;
-            window.clearPixels();
-            rasterizeModel(loadObj("cornell-box/cornell-box.obj"));
-        }
+        // else if(event.key.keysym.sym == SDLK_p) {
+        //     cout << "P" << endl;
+        //     window.clearPixels();
+        //     rasterizeModel(loadObj("cornell-box/cornell-box.obj"));
+        // }
         else if(event.key.keysym.sym == SDLK_r) {
             cout << "Reset" << endl;
             resetCamera();
@@ -845,6 +874,9 @@ void handleEvent(SDL_Event event)
         else if(event.key.keysym.sym == SDLK_4) {
             mode = 4;
             cout << "Raytrace + AA:" << endl;
+        }
+        else if(event.key.keysym.sym == SDLK_p) {
+            savePPM();
         }
     }
     else if(event.type == SDL_MOUSEBUTTONDOWN) cout << "MOUSE CLICKED" << endl;
