@@ -63,7 +63,8 @@ vector<vec3> lightPositions;
 
 int main(int argc, char* argv[])
 {
-    vector<ModelTriangle> model = loadObj("cornell-box/cornell-box.obj");
+    // vector<ModelTriangle> model = loadObj("cornell-box/cornell-box.obj");
+    vector<ModelTriangle> model = loadObj("logo/logo.obj");
     initialiseLights(model, 10);
     for(int i=0; i<lightPositions.size(); i++){
         // solution for now
@@ -124,6 +125,104 @@ void drawLine(CanvasPoint from, CanvasPoint to, Colour colour){
         window.setPixelColour(round(x), round(y), colour.getPacked());
     }
 }
+//**** Helper functions for Wu line algorithm *****
+//integer part of x
+float ipart(float x){
+    return floor(x);
+}
+
+float roundPart(float x){
+    return ipart(x+0.5);
+}
+
+//fractional part of x
+float fpart(float x){
+    return x-floor(x);
+}
+
+float rfpart(float x){
+    return 1 - fpart(x);
+}
+
+void drawPoint(int x, int y, Colour colour, float brightness){
+    Colour adjustedColour = Colour(colour.red, colour.green, colour.blue, brightness);
+    window.setPixelColour(x, y, adjustedColour.getPacked());
+}
+
+
+void drawWuLine(CanvasPoint from, CanvasPoint to, Colour colour){
+    // bool steep = ifSteep(from, to);
+    float x0 = from.x;
+    float y0 = from.y;
+    float x1 = to.x;
+    float y1 = to.y;
+    int steep = abs(y1-y0) > abs(x1-x0);
+
+    if(steep){
+        swap(x0, y0);
+        swap(x1, y1);
+    }
+    if(x0 > x1){
+        swap(x0, x1);
+        swap(y0, y1);
+
+    }
+    //compute the slope
+    float dx = x1-x0;
+    float dy = y1-y0;
+    float gradient = dy/dx;
+    if(dx == 0.0){
+        gradient = 1;
+    }
+    //first endpoint
+    int xend = round(x0);
+    float yend = y0 + (gradient * (xend-x0));
+    float xgap = fpart(x0+0.5);
+    int xpxl1 = xend;
+    int ypxl1 = ipart(yend);
+
+    if(steep){
+        drawPoint(ypxl1, xpxl1, colour, rfpart(yend)*xgap);
+        drawPoint(ypxl1+1, xpxl1, colour, fpart(yend)*xgap);
+    }
+    else{
+        drawPoint(xpxl1, ypxl1  , colour, rfpart(yend) * xgap);
+        drawPoint(xpxl1, ypxl1+1, colour, fpart(yend) * xgap);
+    }
+    float yintersect =  yend + gradient; // first y intersection
+
+    //second enpoint
+    xend = round(x1);
+    yend = y1 + (gradient *(xend - x1));
+    xgap = fpart(x1 +0.5);
+    int xpxl2 = xend;
+    int ypxl2 = ipart(yend);
+
+    if(steep){
+        drawPoint(ypxl2, xpxl2, colour, rfpart(yend) * xgap);
+        drawPoint(ypxl2+1, xpxl2, colour, fpart(yend) * xgap);
+    }
+    else{
+        drawPoint(xpxl2, ypxl2, colour, rfpart(yend) * xgap);
+        drawPoint(xpxl2, ypxl2+1, colour, fpart(yend) * xgap);
+    }
+
+    // main loop
+    if(steep){
+        for(int x=xpxl1+1; x<xpxl2-1; x++){
+            drawPoint(ipart(yintersect), x, colour, rfpart(yintersect));
+            drawPoint(ipart(yintersect)+1, x, colour, fpart(yintersect));
+            yintersect = yintersect + gradient;
+        }
+    }
+    else{
+        for(int x=xpxl1+1; x<xpxl2-1; x++){
+            drawPoint(x, ipart(yintersect), colour, rfpart(yintersect));
+            drawPoint(x, ipart(yintersect)+1, colour, fpart(yintersect));
+            yintersect = yintersect + gradient;
+        }
+    }
+}
 
 void drawStrokeTriangle(CanvasTriangle t){
     drawLine(t.vertices[0], t.vertices[1], t.colour);
@@ -131,6 +230,18 @@ void drawStrokeTriangle(CanvasTriangle t){
     drawLine(t.vertices[1], t.vertices[2], t.colour);
 }
 
+void drawWuStrokeTriangle(CanvasTriangle t){
+    drawWuLine(t.vertices[0], t.vertices[1], t.colour);
+    drawWuLine(t.vertices[0], t.vertices[2], t.colour);
+    drawWuLine(t.vertices[1], t.vertices[2], t.colour);
+}
+
+
+void drawFrame(CanvasTriangle t, vector<float> &zArray){
+    drawRow(t.vertices[0], t.vertices[1], t.colour, zArray);
+    drawRow(t.vertices[0], t.vertices[2], t.colour, zArray);
+    drawRow(t.vertices[1], t.vertices[2], t.colour, zArray);
+}
 
 void drawFilledTriangle(CanvasTriangle t, vector<float> &zArray){
     t.calculateTriangleMeta();
@@ -321,13 +432,16 @@ void createTextureTriangle(){
 }
 
 vector<Colour> loadMtl(string path){
-    // name = "cornell_box/cornell_box.mtl"
     string nameLine;
     string propertiesLine;
-    ifstream file;
-    file.open(path);
-    if (file.fail()){
-        cout << ".MTL FILE COULD NOT BE OPENED" << endl;
+    ifstream file(path, std::ios::in);
+    // file.open(path);
+    // if (file.fail()){
+    //     cout << ".MTL FILE COULD NOT BE OPENED" << endl;
+    // }
+    if(!file){
+        std::cerr << "Cannot open " << path << std::endl;
+		exit(1);
     }
     vector<Colour> colours;
     while (true) {
@@ -368,6 +482,7 @@ vector<ModelTriangle> loadObj(string path){
     vector<vec3> points;
     vector<Colour> colours;
     vector<ModelTriangle> triangles;
+    vector<TexturePoint> texturePoints;
     //Get vertices, and material files
     while (true){
         string line;
@@ -382,6 +497,10 @@ vector<ModelTriangle> loadObj(string path){
             vec3 point = vec3( stof(items[1]), stof(items[2]), stof(items[3]));
             // vec3 point = vec3(1, 1, 1);
             points.push_back(point);
+        }
+        else if(!items[0].compare("vt")){
+            TexturePoint point = TexturePoint(stof(items[1]), stof(items[2]));
+            texturePoints.push_back(point);
         }
         if (file.eof() ) break;
     }
@@ -404,6 +523,8 @@ vector<ModelTriangle> loadObj(string path){
             currentColour = getColourByName(colours, materialName);
         }
         if (!items[0].compare("f")){
+            // number after / represents indices for texture points
+            cout << "1: " << items[1] << "2: " << items[2] << "3: " << items[3] << endl;
             items[1].pop_back();
             items[2].pop_back();
             items[3].pop_back();
@@ -440,10 +561,12 @@ CanvasTriangle triangleToCanvas(ModelTriangle t){
 }
 
 void drawWireframes(vector<ModelTriangle> triangles){
+    vector<float> zArray = getEmptyZArray();
     for (int i = 0; i < triangles.size(); i++){
         ModelTriangle currentTriangle = triangles.at(i);
         CanvasTriangle t = triangleToCanvas(currentTriangle);
-        drawStrokeTriangle(t);
+        drawWuStrokeTriangle(t);
+        //drawFrame(t, zArray);
     }
 }
 
@@ -452,7 +575,9 @@ void rasterizeModel(vector<ModelTriangle> triangles){
     for (int i = 0; i < triangles.size(); i++){
         ModelTriangle currentTriangle = triangles.at(i);
         CanvasTriangle t = triangleToCanvas(currentTriangle);
+        //drawFrame(t, zArray);
         drawFilledTriangle(t, zArray);
+
     }
 }
 
@@ -530,7 +655,7 @@ void initialiseLights(vector<ModelTriangle>triangles, int numberOfLights){
 
 
 float getBrightness(vec3 normal, vec3 lightToIntersection, vec3 ray){
-    float brightness = 1/(4 * PI * pow(length(lightToIntersection),2));
+    float brightness = 1/(4 * PI * length(lightToIntersection)*length(lightToIntersection));
     // if (lightingMode == 1){
 
     float angleOI = dot(normalize(lightToIntersection),normalize(normal));

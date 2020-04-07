@@ -21,3 +21,12 @@ Kd 1.000000 0.000000 1.000000
 
 newmtl Cyan
 Kd 0.000000 1.000000 1.000000
+
+newmtl DarkGreen
+Kd 0.14 0.45 0.091
+
+newmtl BloodyRed
+Kd 0.63 0.065 0.05
+
+newmtl SemiGrey
+Kd 0.725 0.71 0.68
