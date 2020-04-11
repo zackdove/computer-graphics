@@ -11,7 +11,7 @@
 #include <math.h>
 #include "threeDPoint.h"
 #include <glm/gtc/matrix_access.hpp>
-
+#include <time.h>
 
 using namespace std;
 using namespace glm;
@@ -44,12 +44,17 @@ void raytraceModel(vector<ModelTriangle> model);
 void raytraceModelAA(vector<ModelTriangle> triangles);
 void drawWireframes(vector<ModelTriangle> triangles);
 void initialiseLights(vector<ModelTriangle>triangles, int numberOfLights);
-
+vector<ModelTriangle> loadSphere(string filename, float scalefactor);
+vector<ModelTriangle> initialiseModels(vector<ModelTriangle> &cornell, vector<ModelTriangle> &sphere);
+bool solutionOnTriangle(vec3 i);
+Colour getReflection(vector<ModelTriangle> &triangles, vec3 source, vec3 ray, int index);
 
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 
 //taken from light position in obj file
 vec3 lightPosition(-0.2334011,4,-3.043968);
+//for sphere
+// vec3 lightPosition(1.5,5,4);
 mat3 cameraOrientation(vec3(1.0,0.0,0.0),vec3(0.0,1.0,0.0),vec3(0.0,0.0,1.0));
 vec3 cameraPosition(0,1,6);
 float focalLength = 250;
@@ -58,13 +63,18 @@ int mode = 1;
 // 0 = no lighting, 1 = proximity, 2 = specular
 int lightingMode = 1;
 // 0 = hard shadows, 1 = soft shadows
-int shadowMode = 1;
+int shadowMode = 0;
+//if 1 face of blue box is mirror
+int mirrorBox = 1;
 vector<vec3> lightPositions;
 
 int main(int argc, char* argv[])
 {
+    vector<ModelTriangle> cornell = loadObj("cornell-box/cornell-box.obj");
+    // vector<ModelTriangle> model = loadObj("logo/logo.obj");
+    vector<ModelTriangle> sphere = loadSphere("logo/sphere.obj", 0.25f);
+    vector<ModelTriangle> model = initialiseModels(cornell, sphere);
     // vector<ModelTriangle> model = loadObj("cornell-box/cornell-box.obj");
-    vector<ModelTriangle> model = loadObj("logo/logo.obj");
     initialiseLights(model, 10);
     for(int i=0; i<lightPositions.size(); i++){
         // solution for now
@@ -270,7 +280,6 @@ void drawRow(CanvasPoint from, CanvasPoint to, Colour colour, vector<float> &zAr
                 // cout << "pixel is behind " << from.x+x << ",  " << y << endl;
                 // window.setPixelColour(round(from.x + x), y, Colour(255, 255, 255).getPacked());
             }
-            // cout << "z array: " << zArray.at(y*WIDTH + from.x + x) << " depth: " << depth << endl;
         }
     }
 }
@@ -325,8 +334,10 @@ void savePPM(){
     char green;
     char blue;
     uint32_t pixel;
+    time_t seconds;
+    seconds = time (NULL);
     //add to_string(n) for different frame numbers
-    string filename = "./frames/frame.ppm";
+    string filename = "./frames/frame" + to_string(seconds) + ".ppm";
     ofstream out(filename, std::ios::out | std::ios::binary);
     if(!out){
         std::cerr << "Cannot open:" << filename << endl;
@@ -434,14 +445,10 @@ void createTextureTriangle(){
 vector<Colour> loadMtl(string path){
     string nameLine;
     string propertiesLine;
-    ifstream file(path, std::ios::in);
-    // file.open(path);
-    // if (file.fail()){
-    //     cout << ".MTL FILE COULD NOT BE OPENED" << endl;
-    // }
-    if(!file){
-        std::cerr << "Cannot open " << path << std::endl;
-		exit(1);
+    ifstream file;
+    file.open(path);
+    if (file.fail()){
+        cout << ".MTL FILE COULD NOT BE OPENED" << endl;
     }
     vector<Colour> colours;
     while (true) {
@@ -459,8 +466,12 @@ vector<Colour> loadMtl(string path){
         // cout << c << endl;
         string emptyLine;
         getline(file, emptyLine);
-        if( file.eof() ) break;
+        if( file.eof() ){
+            file.close();
+            break;
+        }
     }
+
     return colours;
 }
 
@@ -496,6 +507,10 @@ vector<ModelTriangle> loadObj(string path){
         } else if (!items[0].compare("v")){
             vec3 point = vec3( stof(items[1]), stof(items[2]), stof(items[3]));
             // vec3 point = vec3(1, 1, 1);
+            if(!path.compare("logo/logo.obj")){
+
+                point = vec3((stof(items[1])/250)-1, (stof(items[2])/250)+2, (stof(items[3])/250)-1);
+            }
             points.push_back(point);
         }
         else if(!items[0].compare("vt")){
@@ -524,13 +539,24 @@ vector<ModelTriangle> loadObj(string path){
         }
         if (!items[0].compare("f")){
             // number after / represents indices for texture points
-            cout << "1: " << items[1] << "2: " << items[2] << "3: " << items[3] << endl;
-            items[1].pop_back();
-            items[2].pop_back();
-            items[3].pop_back();
-            int a = stoi(items[1]) -1 ;
-            int b = stoi(items[2]) -1;
-            int c = stoi(items[3]) -1;
+            int a, b, c;
+            int at, bt, ct;
+            const char *chh = line.c_str();
+            //cornellbox has no texture points
+            if(!path.compare("cornell-box/cornell-box.obj")){
+                sscanf(chh, "f %i/ %i/ %i/",&a, &b, &c);
+            }
+            else {
+                sscanf(chh, "f %i/%i %i/%i %i/%i",&a, &at, &b, &bt, &c, &ct);
+                at --;
+                bt --;
+                ct --;
+            }
+            a --;
+            b --;
+            c --;
+            //for logo until i fix materials
+            // currentColour = Colour(255, 0, 0);
             ModelTriangle t = ModelTriangle(points.at(a), points.at(b), points.at(c), currentColour, objectName);
             triangles.push_back(t);
         }
@@ -539,7 +565,156 @@ vector<ModelTriangle> loadObj(string path){
     // cout << "triangles, objects and materials loaded" << endl;
     return triangles;
 }
+//could probably combine it into one function -- is this needed??
+vector<ModelTriangle> loadSphere(string filename, float scalefactor){
+    ifstream file;
+    file.open(filename);
+    if(file.fail()){
+        cout << ".OBJ FILE COULD NOT BE OPENED" << endl;
+    }
+    char space = char(32);
+    vector<string> materialFileNames;
+    vector<vec3> points;
+    vector<Colour> colours;
+    vector<ModelTriangle> triangles;
+    vector<TexturePoint> texturePoints;
+    vector<vec3> normals;
+    while(!file.eof()){
+        string line;
+        getline(file, line);
+        string* items = split(line, space);
+        if (!items[0].compare("mtllib")){
+            vector<Colour> newColours = loadMtl(items[1]);
+            colours.insert(colours.end(), newColours.begin(), newColours.end() );
+        } else if (!items[0].compare("v")){
+            vec3 point;
+            point.x = stof(items[1]) * scalefactor;
+            point.y = stof(items[2]) * scalefactor;
+            point.z = stof(items[3]) * scalefactor;
+            points.push_back(point);
+        }
+        else if(!items[0].compare("vt")){
+            TexturePoint point = TexturePoint(stof(items[1]), stof(items[2]));
+            texturePoints.push_back(point);
+        }
+        else if(!items[0].compare("vn")){
+            vec3 normalPoint = vec3(stof(items[1]), stof(items[2]), stof(items[3]));
+            normals.push_back(normalPoint);
+        }
+    }
+    file.clear();
+    file.seekg(0, ios::beg);
+    string objectName;
+    while(!file.eof()){
+        string line;
+        getline(file, line);
+        string* items = split(line, space);
+        string materialName;
+        Colour currentColour;
+        if (!items[0].compare("o")){
+            objectName = items[1];
+        }
+        if (!items[0].compare("usemtl")){
+            materialName = items[1];
+            currentColour = getColourByName(colours, materialName);
+        }
+        if (!items[0].compare("f")){
+            // number after / represents indices for texture points
+            int a, b, c;
+            //Texture points -- currently not doing anything with them
+            int at, bt, ct;
+            // normals
+            int an, bn, cn;
+            const char *chh = line.c_str();
+            sscanf(chh, "f %i/%i/%i %i/%i/%i %i/%i/%i",&a, &at, &an, &b, &bt, &bn, &c, &ct, &cn);
+            a --;
+            b --;
+            c --;
+            at --;
+            bt --;
+            ct --;
+            an --;
+            bn --;
+            cn --;
+            //for sphere until i fix materials
+            currentColour = Colour(255, 0, 255);
+            ModelTriangle t = ModelTriangle(points.at(a), points.at(b), points.at(c), currentColour, normals.at(an), normals.at(bn), normals.at(cn));
+            t.objectName = objectName;
+            triangles.push_back(t);
+        }
+    }
+    return triangles;
+}
+//position sphere and logo
+vector<ModelTriangle> initialiseModels(vector<ModelTriangle> &cornell, vector<ModelTriangle> &sphere){
+    // find min y coordinate of sphere
+    float minY = 9999;
+    vec3 sphereMin;
+    for(int i = 0; i < sphere.size(); i++){
+        ModelTriangle s = sphere.at(i);
+        for(int j = 0; j < 3; j++){
+            if(s.vertices[j].y < minY){
+                minY = s.vertices[j].y;
+                sphereMin = s.vertices[j];
+            }
+        }
+    }
+    //find point on red box to place sphere
+    float maxY = -9999;
+    float maxX = -9999;
+    float minX = 9999;
+    float maxZ = -9999;
+    float minZ = 9999;
+    vector<ModelTriangle> model;
+    for(int i = 0; i < cornell.size(); i++){
+        ModelTriangle t = cornell.at(i);
+        // t.colour = Colour(255,255,255);
+        if(!t.objectName.compare("short_box")){
+            // top face
+            if (i == 17 || i == 12){
+                for(int j = 0; j < 3; j++){
+                    if(t.vertices[j].y > maxY){
+                        maxY = t.vertices[j].y;
+                    }
+                    if(t.vertices[j].x > maxX){
+                        maxX = t.vertices[j].x;
+                    }
+                    if(t.vertices[j].x < minX){
+                        minX = t.vertices[j].x;
+                    }
+                    if(t.vertices[j].z > maxZ){
+                        maxZ = t.vertices[j].z;
+                    }
+                    if(t.vertices[j].z < minZ){
+                        minZ = t.vertices[j].z;
+                    }
+                }
 
+
+            }
+        }
+    }
+    vector<ModelTriangle> adjustedSphere;
+    //(maxZ+minZ)/2 - sphereMin.z
+    vec3 adjustment= vec3((maxX+minX)/2 - sphereMin.x, maxY - sphereMin.y, (maxZ+minZ)/2 - sphereMin.z);
+    for(int  i = 0; i < sphere.size(); i++){
+        ModelTriangle t = sphere.at(i);
+        vec3 A = t.vertices[0] + adjustment;
+        vec3 B = t.vertices[1] + adjustment;
+        vec3 C = t.vertices[2] + adjustment;
+        ModelTriangle triangle = ModelTriangle(A, B, C, t.colour);
+        triangle.objectName = t.objectName;
+        triangle.normals[0] = t.normals[0];
+        triangle.normals[1] = t.normals[1];
+        triangle.normals[2] = t.normals[2];
+        adjustedSphere.push_back(triangle);
+    }
+    model.reserve(cornell.size() + adjustedSphere.size());
+    model.insert(model.end(), cornell.begin(), cornell.end());
+    model.insert(model.end(), adjustedSphere.begin(), adjustedSphere.end());
+    // work out  scale factor from model?
+    return model;
+}
 
 CanvasTriangle triangleToCanvas(ModelTriangle t){
   CanvasTriangle projection;
@@ -565,7 +740,7 @@ void drawWireframes(vector<ModelTriangle> triangles){
     for (int i = 0; i < triangles.size(); i++){
         ModelTriangle currentTriangle = triangles.at(i);
         CanvasTriangle t = triangleToCanvas(currentTriangle);
-        drawWuStrokeTriangle(t);
+        drawStrokeTriangle(t);
         //drawFrame(t, zArray);
     }
 }
@@ -581,11 +756,9 @@ void rasterizeModel(vector<ModelTriangle> triangles){
     }
 }
 
-bool solutionOnTriangle(vec3 i){
-    return (0.0<=i.y && i.y<=1.0 && 0.0<=i.z && i.z<=1.0 && (i.y+i.z<=1.0));
-}
-// find min and max verices in all axes
-// interpolate light positions in 3 axes
+
+
+// TO DO: normalise all the points so theyre all point downwards
 void initialiseLights(vector<ModelTriangle>triangles, int numberOfLights){
     vector<ModelTriangle> lightTriangles;
     //change these if necessary
@@ -654,26 +827,35 @@ void initialiseLights(vector<ModelTriangle>triangles, int numberOfLights){
 }
 
 
-float getBrightness(vec3 normal, vec3 lightToIntersection, vec3 ray){
+
+float getBrightness(vec3 normal, vec3 lightToIntersection, vec3 ray, bool print){
     float brightness = 1/(4 * PI * length(lightToIntersection)*length(lightToIntersection));
     // if (lightingMode == 1){
-
+    if(print){
+        cout << "brightness 1: " << brightness << endl;
+        cout << "distance to light: " << length(lightToIntersection) << endl;
+    }
     float angleOI = dot(normalize(lightToIntersection),normalize(normal));
     if (angleOI > 0){
         // the bigger the angle the closer to parallel the light ray
         // and the normal are so the brighter the the point
         brightness += angleOI;
     }
+    if(print){
+        cout << "brightness 2: " << brightness << endl;
+    }
     // }
     //specular light calcs from http://paulbourke.net/geometry/reflected/
     // else if (lightingMode == 2){
-        //POV needs to point towards us
+    //POV needs to point towards us
     vec3 flippedRay = -1.0f* ray;
-    //do i need to normalize the normal?
     vec3 reflected = lightToIntersection - (2.0f *normalize(normal) * dot(lightToIntersection,normalize(normal)));
     float angleRV = dot( normalize(flippedRay), normalize(reflected));
     if (angleRV > 0.0f){
-        brightness += pow(angleRV, 24.0f);
+        brightness += pow(angleRV, 10.0f);
+    }
+    if(print){
+        cout << "brightness 3: " << brightness << endl;
     }
     // }
     //ambient light threshold
@@ -709,6 +891,8 @@ bool inHardShadow(vector<ModelTriangle> triangles, vec3 surfacePoint, int curren
 float getSoftShadow(vec3 surfaceNormal, vec3 surfacePoint, vector<ModelTriangle> triangles, int currentTriangleIndex){
     float shadeValue = 0.0f;
     float shadowCount = 0.0f;
+#pragma omp parallel
+#pragma omp for
     for(int i=0; i<lightPositions.size(); i++){
         if(inHardShadow(triangles, surfacePoint,currentTriangleIndex,lightPositions.at(i))){
             shadowCount ++;
@@ -718,26 +902,141 @@ float getSoftShadow(vec3 surfaceNormal, vec3 surfacePoint, vector<ModelTriangle>
     return shadeValue;
 }
 
- RayTriangleIntersection getClosestIntersection(vector<ModelTriangle> triangles, vec3 ray){
+vec3 calculateNormal(ModelTriangle triangle, vec3 possibleSolution){
+    vec3 n0 = triangle.normals[0];
+    vec3 n1 = triangle.normals[1];
+    vec3 n2 = triangle.normals[2];
+    vec3 normal = n0 + possibleSolution.y*(n1-n0) +possibleSolution.z*(n2-n0);
+    return normal;
+}
+
+bool solutionOnTriangle(vec3 i){
+    return (0.0<=i.y && i.y<=1.0 && 0.0<=i.z && i.z<=1.0 && (i.y+i.z<=1.0));
+}
+
+vec3 getReflectedRay(vec3 normal, vec3 ray){
+    normal = normalize(normal);
+    if(dot(ray, normal) > 0.0f){
+        normal = -1.0f * normal;
+    }
+    else{
+        ray = -1.0f* ray;
+    }
+    vec3 reflectedRay = ray - 2.0f*(dot(normal, ray) * normal);
+    return normalize(reflectedRay);
+}
+
+
+ RayTriangleIntersection getClosestIntersection(vector<ModelTriangle> triangles, vec3 ray, vec3 startPosition, int rayBouncesLeft){
     RayTriangleIntersection closestIntersection;
     closestIntersection.distanceFromCamera = std::numeric_limits<float>::infinity();
 #pragma omp parallel
 #pragma omp for
     for (int i=0; i<triangles.size(); i++){
         ModelTriangle triangle = triangles.at(i);
+        // cout << triangle.objectName << endl;
+        if(!triangle.objectName.compare("sphere")){
+            // cout << triangle.colour << endl;
+        }
         vec3 e0 = vec3(triangle.vertices[1] - triangle.vertices[0]);
         vec3 e1 = vec3(triangle.vertices[2] - triangle.vertices[0]);
-        vec3 SPVector = vec3(cameraPosition-triangle.vertices[0]);
+        vec3 SPVector = vec3(startPosition-triangle.vertices[0]);
         mat3 DEMatrix(-ray, e0, e1);
         vec3 possibleSolution = glm::inverse(DEMatrix) * SPVector;
-        if (solutionOnTriangle(possibleSolution)){
+        // float t = abs(possibleSolution.x);
+        if (solutionOnTriangle(possibleSolution) && possibleSolution.x > 0.0001f){
             if (possibleSolution.x < closestIntersection.distanceFromCamera){
 
                 vec3 intersection = triangle.vertices[0] + possibleSolution.y*e0 + possibleSolution.z*e1;
                 vec3 lightToIntersection = lightPosition - intersection;
                 //closestIntersection.distanceFromLight = glm::length(lightToIntersection);
-                vec3 normal = glm::cross(e0,e1);
-                float brightness = getBrightness(normal,lightToIntersection, ray);
+                Colour adjustedColour;
+                // should have something like:
+                // triangle.texture = mirror
+                if((i == 26 || i == 31) && mirrorBox && rayBouncesLeft > 0){
+                    vec3 planeNormal = glm::cross(e1, e0);
+                    vec3 reflectedRay = getReflectedRay(planeNormal, ray);
+                    // adjustedColour = getReflection(triangles, intersection, reflectedRay, i);
+
+                    RayTriangleIntersection reflectedIntersection = getClosestIntersection(triangles, reflectedRay, intersection, rayBouncesLeft -1);
+                    if(reflectedIntersection.distanceFromCamera < std::numeric_limits<float>::infinity()){
+                        adjustedColour = reflectedIntersection.intersectionPointColour;
+                    }
+                    else{
+                        adjustedColour = Colour(0,0,0);
+                    }
+
+                }
+                else{
+                    vec3 normal;
+                    if(!triangle.objectName.compare("sphere")){
+                        normal = calculateNormal(triangle, possibleSolution);
+                    }
+                    else{
+                        normal = glm::cross(e0,e1);
+                    }
+                    bool print = false;
+                    // if(!triangle.objectName.compare("sphere")){
+                    //     print = true;
+                    // }
+                    // vec3 normal = calculateNormal(triangle, possibleSolution);
+                    float brightness = getBrightness(normal,lightToIntersection, ray, print);
+                    if(shadowMode == 0){
+                        bool inShadow = inHardShadow(triangles, intersection, i, lightPosition);
+                        if(inShadow){
+                            brightness = 0.15f;
+                        }
+                    }
+                    else if(shadowMode == 1){
+                        float shadeValue = getSoftShadow(normal, intersection, triangles, i);
+                        float shadeProp = 1 - shadeValue;
+                        brightness *= shadeProp;
+                        if(brightness < 0.15){
+                            brightness = 0.15f;
+                        }
+
+                    }
+                    if(brightness > 1.0f){
+                        brightness = 1.0f;
+                    }
+                    adjustedColour = Colour(triangle.colour.red, triangle.colour.green, triangle.colour.blue, brightness);
+                }
+                closestIntersection = RayTriangleIntersection(intersection, possibleSolution.x, triangle, adjustedColour);
+            }
+        }
+    }
+    return closestIntersection;
+}
+//DONT NEED
+Colour getReflection(vector<ModelTriangle> &triangles, vec3 source, vec3 ray, int index){
+    RayTriangleIntersection closestReflection;
+    Colour intersectedColour;
+    closestReflection.distanceFromCamera = std::numeric_limits<float>::max();
+    for(int i = 0; i < triangles.size(); i++){
+        ModelTriangle triangle = triangles.at(i);
+        vec3 e0 = vec3(triangle.vertices[1] - triangle.vertices[0]);
+        vec3 e1 = vec3(triangle.vertices[2] - triangle.vertices[0]);
+        vec3 SPVector = vec3(source-triangle.vertices[0]);
+        mat3 DEMatrix(-(ray), e0, e1);
+        vec3 possibleSolution = glm::inverse(DEMatrix) * SPVector;
+        // && (i!=index)
+        if(solutionOnTriangle(possibleSolution) && possibleSolution.x > 0.001f){
+            if(possibleSolution.x < closestReflection.distanceFromCamera){
+                vec3 intersection = triangle.vertices[0] + possibleSolution.y*e0 + possibleSolution.z*e1;
+                vec3 lightToIntersection = lightPosition - intersection;
+                // Probably dont need all of this
+                closestReflection.distanceFromCamera = possibleSolution.x;
+                closestReflection.intersectionPoint = intersection;
+                closestReflection.intersectedTriangle = triangle;
+                vec3 normal;
+                bool print = false;
+                if(!triangle.objectName.compare("sphere")){
+                    normal = calculateNormal(triangle, possibleSolution);
+                }
+                else{
+                    normal = glm::cross(e0,e1);
+                }
+                float brightness = getBrightness(normal,lightToIntersection, ray, print);
                 if(shadowMode == 0){
                     bool inShadow = inHardShadow(triangles, intersection, i, lightPosition);
                     if(inShadow){
@@ -756,18 +1055,19 @@ float getSoftShadow(vec3 surfaceNormal, vec3 surfacePoint, vector<ModelTriangle>
                 if(brightness > 1.0f){
                     brightness = 1.0f;
                 }
-
                 Colour adjustedColour = Colour(triangle.colour.red, triangle.colour.green, triangle.colour.blue, brightness);
-                closestIntersection = RayTriangleIntersection(intersection, possibleSolution.x, triangle, adjustedColour);
-            } else {
-                //interscts & on triangle but not closest
+                closestReflection.intersectionPointColour = adjustedColour;
             }
         }
-        else {
-            // not on triangle
-        }
     }
-    return closestIntersection;
+    if(closestReflection.distanceFromCamera == std::numeric_limits<float>::max()){
+        intersectedColour = Colour(0,0,0);
+    }
+    else{
+        // intersectedColour = closestReflection.intersectedTriangle.colour;
+        intersectedColour = closestReflection.intersectionPointColour;
+    }
+    return intersectedColour;
 }
 
 void raytraceModel(vector<ModelTriangle> triangles){
@@ -778,9 +1078,8 @@ void raytraceModel(vector<ModelTriangle> triangles){
             vec3 point = vec3(WIDTH/2 -x, y-(HEIGHT/2), focalLength);
             vec3 ray = cameraPosition - point;
             ray = normalize(ray * glm::inverse(cameraOrientation));
-            RayTriangleIntersection intersection = getClosestIntersection(triangles, ray );
+            RayTriangleIntersection intersection = getClosestIntersection(triangles, ray, cameraPosition, 1);
             if (!std::isinf( intersection.distanceFromCamera )){
-                ModelTriangle triangle = intersection.intersectedTriangle;
                 window.setPixelColour(x,y, intersection.intersectionPointColour.getPacked());
             }
 
@@ -810,11 +1109,11 @@ void raytraceModelAA(vector<ModelTriangle> triangles){
             rayBottomLeft = normalize(rayBottomLeft* glm::inverse(cameraOrientation));
             rayBottomRight = normalize(rayBottomRight* glm::inverse(cameraOrientation));
 
-            RayTriangleIntersection intersection = getClosestIntersection(triangles, ray);
-            RayTriangleIntersection intersectionTL = getClosestIntersection(triangles, rayTopLeft);
-            RayTriangleIntersection intersectionTR = getClosestIntersection(triangles, rayTopRight);
-            RayTriangleIntersection intersectionBL = getClosestIntersection(triangles, rayBottomLeft);
-            RayTriangleIntersection intersectionBR = getClosestIntersection(triangles, rayBottomRight);
+            RayTriangleIntersection intersection = getClosestIntersection(triangles, ray, cameraPosition, 3);
+            RayTriangleIntersection intersectionTL = getClosestIntersection(triangles, rayTopLeft, cameraPosition, 3);
+            RayTriangleIntersection intersectionTR = getClosestIntersection(triangles, rayTopRight, cameraPosition, 3);
+            RayTriangleIntersection intersectionBL = getClosestIntersection(triangles, rayBottomLeft, cameraPosition, 3);
+            RayTriangleIntersection intersectionBR = getClosestIntersection(triangles, rayBottomRight, cameraPosition, 3);
 
             if (!std::isinf( intersection.distanceFromCamera )){
                 Colour average;
