@@ -48,6 +48,7 @@ vector<ModelTriangle> loadSphere(string filename, float scalefactor);
 vector<ModelTriangle> initialiseModels(vector<ModelTriangle> &cornell, vector<ModelTriangle> &sphere);
 bool solutionOnTriangle(vec3 i);
 Colour getReflection(vector<ModelTriangle> &triangles, vec3 source, vec3 ray, int index);
+Colour glass(vector<ModelTriangle>triangles, vec3 ray, vec3 intersection, vec3 normal, int depth);
 
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 
@@ -63,9 +64,11 @@ int mode = 1;
 // 0 = no lighting, 1 = proximity, 2 = specular
 int lightingMode = 1;
 // 0 = hard shadows, 1 = soft shadows
-int shadowMode = 0;
+int shadowMode = 1;
 //if 1 face of blue box is mirror
 int mirrorBox = 1;
+// if 1 red box is glass
+int glassBox = 1;
 vector<vec3> lightPositions;
 
 int main(int argc, char* argv[])
@@ -927,7 +930,7 @@ vec3 getReflectedRay(vec3 normal, vec3 ray){
 }
 
 
- RayTriangleIntersection getClosestIntersection(vector<ModelTriangle> triangles, vec3 ray, vec3 startPosition, int rayBouncesLeft){
+ RayTriangleIntersection getClosestIntersection(vector<ModelTriangle> triangles, vec3 ray, vec3 startPosition, int depth){
     RayTriangleIntersection closestIntersection;
     closestIntersection.distanceFromCamera = std::numeric_limits<float>::infinity();
 #pragma omp parallel
@@ -953,12 +956,12 @@ vec3 getReflectedRay(vec3 normal, vec3 ray){
                 Colour adjustedColour;
                 // should have something like:
                 // triangle.texture = mirror
-                if((i == 26 || i == 31) && mirrorBox && rayBouncesLeft > 0){
+                if((i == 26 || i == 31) && mirrorBox && depth > 0){
                     vec3 planeNormal = glm::cross(e1, e0);
                     vec3 reflectedRay = getReflectedRay(planeNormal, ray);
                     // adjustedColour = getReflection(triangles, intersection, reflectedRay, i);
 
-                    RayTriangleIntersection reflectedIntersection = getClosestIntersection(triangles, reflectedRay, intersection, rayBouncesLeft -1);
+                    RayTriangleIntersection reflectedIntersection = getClosestIntersection(triangles, reflectedRay, intersection, depth -1);
                     if(reflectedIntersection.distanceFromCamera < std::numeric_limits<float>::infinity()){
                         adjustedColour = reflectedIntersection.intersectionPointColour;
                     }
@@ -966,6 +969,11 @@ vec3 getReflectedRay(vec3 normal, vec3 ray){
                         adjustedColour = Colour(0,0,0);
                     }
 
+                }
+                // glass
+                else if(!triangle.objectName.compare("short_box") && glassBox && depth >0){
+                    vec3 planeNormal = glm::cross(e0, e1);
+                    adjustedColour = glass(triangles, ray, intersection, planeNormal, depth -1);
                 }
                 else{
                     vec3 normal;
@@ -976,10 +984,6 @@ vec3 getReflectedRay(vec3 normal, vec3 ray){
                         normal = glm::cross(e0,e1);
                     }
                     bool print = false;
-                    // if(!triangle.objectName.compare("sphere")){
-                    //     print = true;
-                    // }
-                    // vec3 normal = calculateNormal(triangle, possibleSolution);
                     float brightness = getBrightness(normal,lightToIntersection, ray, print);
                     if(shadowMode == 0){
                         bool inShadow = inHardShadow(triangles, intersection, i, lightPosition);
@@ -1007,6 +1011,52 @@ vec3 getReflectedRay(vec3 normal, vec3 ray){
     }
     return closestIntersection;
 }
+
+vec3 getNormal(ModelTriangle triangle){
+    vec3 e0 = vec3(triangle.vertices[1] - triangle.vertices[0]);
+    vec3 e1 = vec3(triangle.vertices[2] - triangle.vertices[0]);
+    vec3 normal = normalize(glm::cross(e0,e1));
+    return normal;
+}
+
+vec3 refract(vec3 ray, vec3 planeNormal, float refractiveIndex){
+    float cosI = glm::dot(ray,planeNormal); // negative --> entering material, positive -->leaving
+    float etai = 1, etat = refractiveIndex;
+    if(cosI < 0.0f){
+        cosI = -cosI;
+    }
+    else{
+        std::swap(etai, etat);
+        planeNormal = -planeNormal;
+    }
+    // check for total internal reflection
+    float eta = etai/etat;
+    float k = 1 - eta * eta * (1 - cosI * cosI);
+
+    if(k < 0){
+        return vec3(0,0,0);
+    }
+    vec3 refracted = eta * ray + (eta * cosI - sqrtf(k)) * planeNormal;
+    return refracted;
+}
+
+Colour glass(vector<ModelTriangle>triangles, vec3 ray, vec3 intersection, vec3 normal, int depth){
+    //reflection ray
+    vec3 reflectedRay = getReflectedRay(normal, ray);
+    //ADD IOR constant - 1 = air, 1.5 = glass
+    RayTriangleIntersection reflectedIntersection = getClosestIntersection(triangles, reflectedRay, intersection, depth - 1);
+
+    //refraction ray
+    float refractiveIndex = 1.5; //CHANGE TO 1.5?
+    vec3 refractionRay = refract(ray, normal, refractiveIndex);
+    // may need direction of refraction
+    if(refractionRay == vec3(0,0,0)){
+        return reflectedIntersection.intersectionPointColour;
+    }
+    RayTriangleIntersection refractedIntersection = getClosestIntersection(triangles, refractionRay,intersection, depth -1);
+    return refractedIntersection.intersectionPointColour;
+}
+
 //DONT NEED
 Colour getReflection(vector<ModelTriangle> &triangles, vec3 source, vec3 ray, int index){
     RayTriangleIntersection closestReflection;
@@ -1078,7 +1128,7 @@ void raytraceModel(vector<ModelTriangle> triangles){
             vec3 point = vec3(WIDTH/2 -x, y-(HEIGHT/2), focalLength);
             vec3 ray = cameraPosition - point;
             ray = normalize(ray * glm::inverse(cameraOrientation));
-            RayTriangleIntersection intersection = getClosestIntersection(triangles, ray, cameraPosition, 1);
+            RayTriangleIntersection intersection = getClosestIntersection(triangles, ray, cameraPosition, 7);
             if (!std::isinf( intersection.distanceFromCamera )){
                 window.setPixelColour(x,y, intersection.intersectionPointColour.getPacked());
             }

@@ -14,23 +14,23 @@ The final grade awarded will depend upon the exact combination and features and 
 ### To get into 50s you must ALSO implement SOME of…
 * ~~Changing camera orientation (via orientation matrix)~~
 * ~~LookAt~~
-* ~~Hard Shadow~~
-* Some form of generative geometry
+* ###Some form of generative geometry###
 * ~~Ambient lighting~~
 * ~~Diffuse lighting (proximity and angle-of-incidence)~~
 
 ### To get into 60s you must ALSO implement SOME of…
-* Gouraud shading
+* ~~Hard Shadow~~
+* ~~Gouraud shading~~(technically because of phong)
 * Naive (non-perspective corrected) texture mapping
 * Simple animation (e.g. fly-through)
-* Some form of Physics (gravity, friction, bounce etc)
+* ###Some form of Physics (gravity, friction, bounce etc)###
 * Basic culling (far-plane, near-plan, back-face)
-* ~~Basic anti-aliasing~~(quincux)
+* ###~~Basic anti-aliasing~~(quincux)###
 
 ### To get into 70s you must ALSO implement SOME of…
-* Phong Shading
-* Fairly “interesting” materials (e.g. mirrors)
-* Complex anti-aliasing
+* ~~Phong Shading~~
+* ~~Super Sampling Anti-Aliasing~~
+* ~~Fairly “interesting” materials (e.g. mirrors)~~
 * Perspective corrected texture mapping
 * “Fancy” animation
 * ~~Soft shadow~~
