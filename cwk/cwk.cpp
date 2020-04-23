@@ -9,15 +9,14 @@
 #include <vector>
 #include <string>
 #include <math.h>
-#include "threeDPoint.h"
 #include <glm/gtc/matrix_access.hpp>
 #include <time.h>
 
 using namespace std;
 using namespace glm;
 
-#define WIDTH 700
-#define HEIGHT 600
+#define WIDTH 640
+#define HEIGHT 480
 
 #define PI 3.14159265
 
@@ -49,11 +48,15 @@ vector<ModelTriangle> initialiseModels(vector<ModelTriangle> &cornell, vector<Mo
 bool solutionOnTriangle(vec3 i);
 Colour getReflection(vector<ModelTriangle> &triangles, vec3 source, vec3 ray, int index);
 Colour glass(vector<ModelTriangle>triangles, vec3 ray, vec3 intersection, vec3 normal, int depth);
+vec3 getNormal(ModelTriangle triangle);
+vec3 getSceneCentre(vector<ModelTriangle> triangles);
+vec3 canvasToWorld(CanvasPoint canvasPoint);
+vector<Colour> interpolateColour(Colour startColour, Colour endColour, int steps);
 
 DrawingWindow window = DrawingWindow(WIDTH, HEIGHT, false);
 
 //taken from light position in obj file
-vec3 lightPosition(-0.2334011,4,-3.043968);
+vec3 lightPosition(-0.2334011,4.8,-4.043968);
 //for sphere
 // vec3 lightPosition(1.5,5,4);
 mat3 cameraOrientation(vec3(1.0,0.0,0.0),vec3(0.0,1.0,0.0),vec3(0.0,0.0,1.0));
@@ -64,16 +67,22 @@ int mode = 1;
 // 0 = no lighting, 1 = proximity, 2 = specular
 int lightingMode = 1;
 // 0 = hard shadows, 1 = soft shadows
-int shadowMode = 1;
+int shadowMode = 0;
 //if 1 face of blue box is mirror
 int mirrorBox = 1;
 // if 1 red box is glass
 int glassBox = 1;
 vector<vec3> lightPositions;
+vector<float> zArray;
+vec3 sceneCentre;
 
-int main(int argc, char* argv[])
-{
+int main(int argc, char* argv[]){
+    for(int i = 0; i < WIDTH*HEIGHT; i++){
+        zArray.push_back(std::numeric_limits<float>::infinity());
+    }
+
     vector<ModelTriangle> cornell = loadObj("cornell-box/cornell-box.obj");
+    sceneCentre = getSceneCentre(cornell);
     // vector<ModelTriangle> model = loadObj("logo/logo.obj");
     vector<ModelTriangle> sphere = loadSphere("logo/sphere.obj", 0.25f);
     vector<ModelTriangle> model = initialiseModels(cornell, sphere);
@@ -125,114 +134,114 @@ void update(){
     // Function for performing animation (shifting artifacts or moving the camera)
 }
 
+// Rasterizer
+
+void drawPoint(CanvasPoint point, Colour colour){
+    window.setPixelColour(point.x, point.y, colour.getPacked());
+}
 
 void drawLine(CanvasPoint from, CanvasPoint to, Colour colour){
-    float xDiff = to.x - from.x;
-    float yDiff = to.y - from.y;
+    int xDiff = to.x - from.x;
+    int yDiff = to.y - from.y;
     float numberOfSteps = std::max(abs(xDiff), abs(yDiff));
     float xStepSize = xDiff/numberOfSteps;
     float yStepSize = yDiff/numberOfSteps;
     for (float i=0.0; i<numberOfSteps; i++) {
         float x = from.x + (xStepSize*i);
         float y = from.y + (yStepSize*i);
-        window.setPixelColour(round(x), round(y), colour.getPacked());
-    }
-}
-//**** Helper functions for Wu line algorithm *****
-//integer part of x
-float ipart(float x){
-    return floor(x);
-}
-
-float roundPart(float x){
-    return ipart(x+0.5);
-}
-
-//fractional part of x
-float fpart(float x){
-    return x-floor(x);
-}
-
-float rfpart(float x){
-    return 1 - fpart(x);
-}
-
-void drawPoint(int x, int y, Colour colour, float brightness){
-    Colour adjustedColour = Colour(colour.red, colour.green, colour.blue, brightness);
-    window.setPixelColour(x, y, adjustedColour.getPacked());
-}
-
-
-void drawWuLine(CanvasPoint from, CanvasPoint to, Colour colour){
-    // bool steep = ifSteep(from, to);
-    float x0 = from.x;
-    float y0 = from.y;
-    float x1 = to.x;
-    float y1 = to.y;
-    int steep = abs(y1-y0) > abs(x1-x0);
-
-    if(steep){
-        swap(x0, y0);
-        swap(x1, y1);
-    }
-    if(x0 > x1){
-        swap(x0, x1);
-        swap(y0, y1);
-
-    }
-    //compute the slope
-    float dx = x1-x0;
-    float dy = y1-y0;
-    float gradient = dy/dx;
-    if(dx == 0.0){
-        gradient = 1;
-    }
-    //first endpoint
-    int xend = round(x0);
-    float yend = y0 + (gradient * (xend-x0));
-    float xgap = fpart(x0+0.5);
-    int xpxl1 = xend;
-    int ypxl1 = ipart(yend);
-
-    if(steep){
-        drawPoint(ypxl1, xpxl1, colour, rfpart(yend)*xgap);
-        drawPoint(ypxl1+1, xpxl1, colour, fpart(yend)*xgap);
-    }
-    else{
-        drawPoint(xpxl1, ypxl1  , colour, rfpart(yend) * xgap);
-        drawPoint(xpxl1, ypxl1+1, colour, fpart(yend) * xgap);
-    }
-    float yintersect =  yend + gradient; // first y intersection
-
-    //second enpoint
-    xend = round(x1);
-    yend = y1 + (gradient *(xend - x1));
-    xgap = fpart(x1 +0.5);
-    int xpxl2 = xend;
-    int ypxl2 = ipart(yend);
-
-    if(steep){
-        drawPoint(ypxl2, xpxl2, colour, rfpart(yend) * xgap);
-        drawPoint(ypxl2+1, xpxl2, colour, fpart(yend) * xgap);
-    }
-    else{
-        drawPoint(xpxl2, ypxl2, colour, rfpart(yend) * xgap);
-        drawPoint(xpxl2, ypxl2+1, colour, fpart(yend) * xgap);
-    }
-
-    // main loop
-    if(steep){
-        for(int x=xpxl1+1; x<xpxl2-1; x++){
-            drawPoint(ipart(yintersect), x, colour, rfpart(yintersect));
-            drawPoint(ipart(yintersect)+1, x, colour, fpart(yintersect));
-            yintersect = yintersect + gradient;
+        if( x > 0 && x < WIDTH && y > 0 && y < HEIGHT){
+            window.setPixelColour(round(x), round(y), colour.getPacked());
         }
+
     }
-    else{
-        for(int x=xpxl1+1; x<xpxl2-1; x++){
-            drawPoint(x, ipart(yintersect), colour, rfpart(yintersect));
-            drawPoint(x, ipart(yintersect)+1, colour, fpart(yintersect));
-            yintersect = yintersect + gradient;
+}
+
+Colour pixelShader(vec3 normal, vec3 pos3d, Colour colour){
+    vec3 lightVector = lightPosition - pos3d;
+    float radius = length(lightVector);
+    lightVector = normalize(lightVector);
+    vec3 reflectance(1,1,1);
+    float brightness = 5/(1 * PI * radius*radius);
+    float angleOI = dot(lightVector,normalize(normal));
+    if (angleOI > 0){
+        brightness *= angleOI;
+    }
+    // vec3 brightness = (14.0f*vec3(1,1,1)) * glm::max(dot(lightVector, normal), 0.0f)/ ((float) (4*PI) * radius * radius);
+    // brightness = reflectance * (brightness +  (0.5f * vec3( 1, 1, 1 )));
+    // brightness = 1 * (brightness + 0.5f);
+    if(brightness > 1){
+        brightness = 1.0f;
+    }
+    if(brightness < 0.2f){
+        brightness = 0.2f;
+    }
+    Colour adjustedColour = Colour(colour.red, colour.green, colour.blue, brightness);
+    return adjustedColour;
+}
+
+Colour vertexShader(CanvasPoint point, Colour colour){
+    vec3 lightVector = lightPosition - canvasToWorld(point);
+    float radius = length(lightVector);
+    lightVector = normalize(lightVector);
+    float brightness = 3/(0.3 * PI * radius*radius);
+    float angleOI = dot(lightVector, point.normal);
+    if(angleOI > 0){
+        brightness += angleOI;
+    }
+    if(brightness > 1){
+        brightness = 1.0f;
+    }
+    if(brightness < 0.2f){
+        brightness = 0.2f;
+    }
+    Colour adjustedColour = Colour(colour.red, colour.green, colour.blue, brightness);
+    return adjustedColour;
+}
+
+void drawRow(CanvasPoint from, CanvasPoint to, Colour colour){
+    if (from.x > to.x){
+        // swap(from.x, to.x);
+        // swap(from.depth, to.depth);
+        // swap(from.normal, to.normal);
+        swap(from, to);
+    }
+    float slope;
+    vec3 normalIncrement;
+    vec3 positionIncrement;
+    vector<Colour> colours;
+    if(to.x - from.x == 0){
+        slope = 0;
+        normalIncrement = vec3(0,0,0);
+        positionIncrement = vec3(0,0,0);
+        colours.push_back(from.colour);
+
+    }
+    else {
+        slope = (to.depth - from.depth)/(to.x - from.x);
+        normalIncrement = (to.normal - from.normal)/(to.x - from.x);
+        positionIncrement = (canvasToWorld(to) - canvasToWorld(from))/(to.x - from.x);
+        colours = interpolateColour(from.colour, to.colour, (int) ceil(to.x - from.x)+1);
+    }
+
+    float currentDepth = from.depth;
+    vec3 currentNormal = from.normal;
+    vec3 current3dPos = canvasToWorld(from);
+    Colour currentColour;
+    int j = 0;
+    for(int i = from.x; i <= to.x; i++){
+        if(i + (from.y)*WIDTH > 0 && i+(from.y)*WIDTH < HEIGHT*WIDTH){
+            currentDepth += slope;
+            currentNormal += normalIncrement;
+            current3dPos += positionIncrement;
+            currentColour = colours[j];
+            j++;
+            if(1/currentDepth < zArray.at(i + (from.y)*WIDTH)) {
+                Colour adjustedColour = pixelShader(currentNormal, current3dPos, colour);
+                zArray.at(i + (from.y)*WIDTH) = 1/currentDepth;
+                if( i > 0 && i < WIDTH && from.y > 0 && from.y < HEIGHT){
+                    window.setPixelColour(i, from.y, currentColour.getPacked());
+                }
+            }
         }
     }
 }
@@ -243,63 +252,637 @@ void drawStrokeTriangle(CanvasTriangle t){
     drawLine(t.vertices[1], t.vertices[2], t.colour);
 }
 
-void drawWuStrokeTriangle(CanvasTriangle t){
-    drawWuLine(t.vertices[0], t.vertices[1], t.colour);
-    drawWuLine(t.vertices[0], t.vertices[2], t.colour);
-    drawWuLine(t.vertices[1], t.vertices[2], t.colour);
-}
-
-
-void drawFrame(CanvasTriangle t, vector<float> &zArray){
-    drawRow(t.vertices[0], t.vertices[1], t.colour, zArray);
-    drawRow(t.vertices[0], t.vertices[2], t.colour, zArray);
-    drawRow(t.vertices[1], t.vertices[2], t.colour, zArray);
-}
-
-void drawFilledTriangle(CanvasTriangle t, vector<float> &zArray){
-    t.calculateTriangleMeta();
-    // cout << t.topStarts.size() << endl;
-    for (int i = 0; i < t.topStarts.size(); i++){
-        drawRow(t.topStarts.at(i), t.topEnds.at(i), t.colour, zArray);
+vector<Colour> interpolateColour(Colour startColour, Colour endColour, int steps){
+    //convert to vec3 so can actually work with them
+    vec3 start(startColour.red, startColour.green, startColour.blue);
+    vec3 end(endColour.red, endColour.green, endColour.blue);
+    vector<Colour> colours;
+    if(steps == 1){
+        colours.push_back(startColour);
     }
-    for (int i = 0; i < t.bottomStarts.size(); i++){
-        drawRow(t.bottomStarts.at(i), t.bottomEnds.at(i), t.colour, zArray);
-    }
-}
-
-void drawRow(CanvasPoint from, CanvasPoint to, Colour colour, vector<float> &zArray){
-    if (from.x > to.x) swap(to, from);
-    int y = round(from.y);
-    int rowWidth = round(to.x-from.x);
-    for (int x = 0; x < rowWidth; x++){
-        if ((y < HEIGHT) && (y >= 0)  && ((from.x+x) >=0) && ((from.x+x) < WIDTH-1) ){
-            if (rowWidth == 1) rowWidth = 2;
-            float depth = -1/(from.depth+((to.depth-from.depth)*x/(rowWidth-1)));
-            if (depth > zArray.at(y*WIDTH + from.x + x)){
-                zArray.at(y*WIDTH + from.x + x) = depth;
-                window.setPixelColour(round(from.x + x), y, colour.getPacked());
-            } else {
-                // cout << "z array: " << zArray.at(y*WIDTH + from.x + x) << " depth: " << depth << endl;
-                // cout << "pixel is behind " << from.x+x << ",  " << y << endl;
-                // window.setPixelColour(round(from.x + x), y, Colour(255, 255, 255).getPacked());
-            }
+    else{
+        for(int i=0; i<steps; i++){
+            Colour c;
+            c.red = startColour.red+((endColour.red - startColour.red)*i/(steps-1));
+            c.green = startColour.green+((endColour.green - startColour.green)*i/(steps-1));
+            c.blue = startColour.blue+((endColour.blue - startColour.blue)*i/(steps-1));
+            colours.push_back(c);
         }
     }
+    return colours;
 }
 
-vector<CanvasPoint> interpolateRow(CanvasPoint start, CanvasPoint end, int steps){
-    vector<CanvasPoint> points;
-    for (int i=0; i<steps; i++){
-        CanvasPoint p;
-        if (steps == 1) steps = 2;
-        p.x = start.x+((end.x-start.x)*i/(steps-1));
-        p.y = start.y+((end.y-start.y)*i/(steps-1));
-        p.depth = start.depth+((end.depth-start.depth)*i/(steps-1));
-        points.push_back(p);
+void fillTopTriangle(CanvasPoint top, CanvasPoint middle, CanvasPoint intercept, Colour colour){
+    float xIncrement1 = (middle.x - top.x)/(middle.y - top.y);
+    float xIncrement2 = (intercept.x - top.x)/(intercept.y - top.y);
+    float zIncrement1 = (middle.depth - top.depth)/(middle.y - top.y);
+    float zIncrement2 = (intercept.depth - top.depth)/(intercept.y - top.y);
+
+    vec3 normalIncrement1 = (middle.normal - top.normal)/(middle.y - top.y);
+    vec3 normalIncrement2 = (intercept.normal - top.normal)/(intercept.y - top.y);
+
+    Colour topColour = vertexShader(top, colour);
+    Colour middleColour = vertexShader(middle, colour);
+    Colour interceptColour = vertexShader(intercept, colour);
+
+    vector<Colour> startColours = interpolateColour(topColour, middleColour, (int) ceil(middle.y - top.y)+1);
+    vector<Colour> endColours = interpolateColour(topColour, interceptColour, (int) ceil(middle.y - top.y)+1);
+
+    float startX = top.x;
+    float endX = top.x;
+    float startZ = top.depth;
+    float endZ = top.depth;
+
+    vec3 startNormal = top.normal;
+    vec3 endNormal = top.normal;
+    int j = 0;
+    for (int i = top.y; i <= middle.y; i++) {
+
+        CanvasPoint start(startX, i, startZ);
+        start.normal = startNormal;
+        start.colour = startColours[j];
+        CanvasPoint end(endX, i, endZ);
+        end.normal = endNormal;
+        end.colour = endColours[j];
+        j ++;
+        drawRow(start,end, colour);
+        startX += xIncrement1;
+        endX += xIncrement2;
+        startZ += zIncrement1;
+        endZ += zIncrement2;
+
+        startNormal += normalIncrement1;
+        endNormal += normalIncrement2;
     }
-    return points;
+}
+void fillBottomTriangle(CanvasPoint middle, CanvasPoint intercept, CanvasPoint bottom, Colour colour){
+    float xIncrement1 = (bottom.x - middle.x)/(bottom.y - middle.y);
+    float xIncrement2 = (bottom.x - intercept.x)/(bottom.y - intercept.y);
+    float zIncrement1 = (bottom.depth - middle.depth)/(bottom.y - middle.y);
+    float zIncrement2 = (bottom.depth - intercept.depth)/(bottom.y - intercept.y);
+
+    vec3 normalIncrement1 = (bottom.normal - middle.normal)/(bottom.y - middle.y);
+    vec3 normalIncrement2 = (bottom.normal - intercept.normal)/(bottom.y - intercept.y);
+
+
+    Colour middleColour = vertexShader(middle, colour);
+    Colour interceptColour = vertexShader(intercept, colour);
+    Colour bottomColour = vertexShader(bottom, colour);
+
+    vector<Colour> startColours = interpolateColour(middleColour, bottomColour, (int) ceil(bottom.y - middle.y) +1);
+    vector<Colour> endColours = interpolateColour(interceptColour, bottomColour, (int) ceil(bottom.y - intercept.y)+1);
+
+    float startX = middle.x;
+    float endX = intercept.x;
+    float startZ = middle.depth;
+    float endZ = intercept.depth;
+
+    vec3 startNormal = middle.normal;
+    vec3 endNormal = intercept.normal;
+    int j = 0;
+    for (int i = middle.y; i <= bottom.y; i++) {
+
+        CanvasPoint start(startX, i, startZ);
+        start.normal = startNormal;
+        start.colour = startColours[j];
+        CanvasPoint end(endX, i, endZ);
+        end.normal = endNormal;
+        end.colour = endColours[j];
+        j +=1;
+        drawRow(start,end, colour);
+        startX += xIncrement1;
+        endX += xIncrement2;
+        startZ += zIncrement1;
+        endZ += zIncrement2;
+        startNormal += normalIncrement1;
+        endNormal += normalIncrement2;
+
+    }
+ }
+
+void drawFilledTriangle(CanvasTriangle t){
+    CanvasPoint top = t.vertices[0];
+    CanvasPoint middle = t.vertices[1];
+    CanvasPoint bottom = t.vertices[2];
+
+    if(bottom.y < middle.y){
+        swap(bottom, middle);
+    }
+    if(middle.y < top.y){
+        swap(middle, top);
+    }
+    if (bottom.y < middle.y){
+        swap(bottom, middle);
+    }
+    if(middle.y == top.y && top.y == bottom.y){
+        drawRow(top, bottom, t.colour);
+    }
+    else if(middle.y == bottom.y){
+        if(middle.x > bottom.x) {
+            swap(bottom.x, middle.x);
+            swap(bottom.normal, middle.normal);
+            swap(bottom.colour, middle.colour);
+        }
+        fillTopTriangle(top, middle, bottom, t.colour);
+    }
+    else if(middle.y == top.y){
+        if(middle.y < top.y){
+            swap(top.x, middle.x);
+            swap(top.normal, middle.normal);
+            swap(top.colour, middle.colour);
+        }
+        fillBottomTriangle(middle, top, bottom, t.colour);
+    }
+    else{
+        float ratio = (float)(middle.y - top.y)/(float)(bottom.y - top.y);
+        float interceptDepth =  (top.depth + ratio*(bottom.depth - top.depth));
+        int interceptX = (int)(top.x + ratio*(bottom.x - top.x));
+        vec3 interceptNormal = (top.normal + ratio*(bottom.normal - top.normal));
+        CanvasPoint intercept( interceptX, middle.y, interceptDepth);
+        int red = (top.colour.red + ratio*(bottom.colour.red - top.colour.red));
+        int green = (top.colour.green + ratio*(bottom.colour.green - top.colour.green));
+        int blue = (top.colour.blue + ratio*(bottom.colour.blue - top.colour.blue));
+        intercept.normal = interceptNormal;
+        // intercept.colour = vertexShader(intercept, t.colour);
+        intercept.colour = Colour(red, green, blue);
+        fillTopTriangle(top, middle, intercept, t.colour);
+        fillBottomTriangle(middle, intercept, bottom, t.colour);
+    }
+}
+CanvasTriangle triangleToCanvas(ModelTriangle t){
+  CanvasTriangle projection;
+  for(int i = 0; i<3; i++){
+    float xWorld = t.vertices[i].x;
+    float yWorld = t.vertices[i].y;
+    float zWorld = t.vertices[i].z;
+
+    vec3 a(xWorld-cameraPosition.x,yWorld-cameraPosition.y, zWorld- cameraPosition.z);
+    a = a * cameraOrientation;
+    float ratio = floor(focalLength/a.z);
+    int xp = round(-ratio*a.x + WIDTH/2);
+    int yp = round(ratio*(a.y) +HEIGHT/2);
+    CanvasPoint projectedPoint(xp,yp, a.z);
+    projection.vertices[i] = projectedPoint;
+    projection.colour = t.colour;
+  }
+  return projection;
 }
 
+void drawWireframes(vector<ModelTriangle> triangles){
+    for(int i = 0; i<WIDTH*HEIGHT; i++){
+        zArray[i] = std::numeric_limits<float>::infinity();
+    }
+    for(int i = 0; i < triangles.size(); i++){
+        CanvasTriangle t = triangleToCanvas(triangles.at(i));
+        drawStrokeTriangle(t);
+    }
+}
+void drawPoint(int x, int y, Colour colour){
+  //Bit pack the desired colour to uint_32 and then using SDL set colour of window
+  window.setPixelColour(x,y,colour.getPacked());
+}
+
+vec3 pointToCanvas(vec3 point){
+    float xP = point.x;
+    float yP = point.y;
+    float zP = point.z;
+    vec3 adjusted(xP - cameraPosition.x, yP - cameraPosition.y, zP - cameraPosition.z);
+    adjusted = adjusted * cameraOrientation;
+    float ratio = floor(focalLength/adjusted.z);
+    int xp = round(-ratio*adjusted.x + WIDTH/2);
+    int yp = round(ratio*adjusted.y + HEIGHT/2);
+    vec3 projectedPoint(xp, yp, adjusted.z);
+    return projectedPoint;
+}
+CanvasPoint vec3ToCanvas(vec3 v){
+    return CanvasPoint(v.x, v.y, v.z);
+}
+
+vec3 canvasToWorld(CanvasPoint canvasPoint){
+    float ratio = floor(focalLength/canvasPoint.depth);
+    float xWorld = (canvasPoint.x - WIDTH/2)/-ratio;
+    float yWorld = (canvasPoint.y - HEIGHT/2)/ratio;
+    float zWorld = canvasPoint.depth;
+    vec3 adjusted(xWorld, yWorld, zWorld);
+    adjusted = glm::inverse(cameraOrientation) * adjusted;
+    adjusted = adjusted + cameraPosition;
+    return adjusted;
+}
+
+ModelTriangle calculateVertexNormals(vector<ModelTriangle> triangles, ModelTriangle t, int currentIndex){
+    vec3 A = t.vertices[0];
+    vec3 B = t.vertices[1];
+    vec3 C = t.vertices[2];
+    vector<vec3>vertexNormals;
+    vec3 v0Normal(0,0,0);
+    vec3 v1Normal(0,0,0);
+    vec3 v2Normal(0,0,0);
+    int count = 0;
+    for(int i = 0; i < triangles.size(); i++){
+        ModelTriangle triangle = triangles.at(i);
+        if(i == currentIndex) continue;
+
+        if( (A == triangle.vertices[0]) || (A == triangle.vertices[1]) || (A == triangle.vertices[2]) ){
+            v0Normal += getNormal(triangle);
+            count += 1;
+        }
+        if( (B == triangle.vertices[0]) || (B == triangle.vertices[1]) || (B == triangle.vertices[2]) ){
+            v1Normal += getNormal(triangle);
+        }
+        if( (C == triangle.vertices[0]) || (C == triangle.vertices[1]) || (C == triangle.vertices[2]) ){
+            v2Normal += getNormal(triangle);
+        }
+
+        // if(count > 3){
+        //     t.colour = Colour(255,255,255);
+        // }
+        t.normals[0] = normalize(v0Normal);
+        t.normals[1] = normalize(v1Normal);
+        t.normals[2] = normalize(v2Normal);
+        // for(int j = 0; j < 3; j++){
+        //     if(t.vertices[j] == )
+        // }
+        // if()
+    }
+    return t;
+}
+
+void rasterizeModel(vector<ModelTriangle> triangles){
+    for (size_t i = 0; i < WIDTH*HEIGHT; i++) {
+        zArray[i] = std::numeric_limits<float>::infinity();
+    }
+    for(int i = 0; i < triangles.size(); i++){
+        ModelTriangle t = triangles.at(i);
+        vec3 e0 = vec3(t.vertices[1] - t.vertices[0]);
+        vec3 e1 = vec3(t.vertices[2] - t.vertices[0]);
+        vec3 normal = normalize(glm::cross(e0,e1));
+        vec3 zero(0,0,0);
+        // if(t.objectName.compare("sphere")){
+        //     printVec3(t.normals[0]);
+        // }
+        if((t.normals[0] == zero) && (t.normals[1] == zero) && (t.normals[2] == zero)){
+            t = calculateVertexNormals(triangles, t, i);
+        }
+
+        // vec3 normal0 = pointToCanvas(t.normals[0]);
+        // vec3 normal1 = pointToCanvas(t.normals[1]);
+        // vec3 normal2 = pointToCanvas(t.normals[2]);
+        // if(t.objectName.compare("sphere")){
+        //     printVec3(normal0);
+        // }
+
+        Colour white(255,255,255);
+        // drawPoint(normal1, black);
+        // drawPoint(normal2, black);
+        // drawPoint(normal3, black);
+        // drawPoint(pointToCanvas(t.vertices[0]), white);
+        // drawPoint(pointToCanvas(t.vertices[1]), white);
+        // drawPoint(pointToCanvas(t.vertices[2]), white);
+        if(t.objectName.compare("sphere")){
+            // printVec3(t.normals[0]);
+            // printVec3(t.normals[1]);
+            // printVec3(t.normals[2]);
+            // drawLine(pointToCanvas(t.vertices[0]), pointToCanvas(t.vertices[0])+normal1), white);
+            // drawLine(pointToCanvas(t.vertices[1]), pointToCanvas(t.vertices[1])+normal2), white);
+            // drawLine(pointToCanvas(t.vertices[2]), pointToCanvas(t.vertices[2])+ normal3), white);
+            // drawPoint(pointToCanvas(t.vertices[1] + t.normals[1]), white);
+            // drawPoint(pointToCanvas(t.vertices[2] + t.normals[2]), white);
+            // printVec3(t.normals[0]);
+            // printVec3(t.normals[1]);
+            // printVec3(t.normals[2]);
+        }
+        // CanvasPoint end1(normal1.x * 3, normal1.y*3, normal1.depth*3);
+        // CanvasPoint end2(normal2.x * 3, normal2.y*3, normal2.depth*3);
+        // CanvasPoint end3(normal3.x * 3, normal3.y*3, normal3.depth*3);
+        // drawLine(normal1, end1, Colour(0,0,0));
+        // drawLine(normal2, end2, Colour(0,0,0));
+        // drawLine(normal3, end3, Colour(0,0,0));
+        //find middle
+        float sumX = 0;
+        float sumY = 0;
+        float sumZ = 0;
+        for(int j = 0; j < 3; j++){
+            sumX += t.vertices[j].x;
+            sumY += t.vertices[j].y;
+            sumZ += t.vertices[j].z;
+        }
+        vec3 triangleMiddle(sumX/3.0f, sumY/3.0f, sumZ/3.0f);
+        vec3 lightVector = lightPosition - triangleMiddle;
+        float radius = length(lightVector);
+        lightVector = normalize(lightVector);
+        vec3 reflectance(1,1,1);
+        vec3 brightness = (14.0f*vec3(1,1,1)) * glm::max(dot(lightVector, normal), 0.0f)/ ((float) (4*PI) * radius * radius);
+        brightness = reflectance * (brightness +  (0.5f * vec3( 1, 1, 1 )));
+        if(brightness[0] > 1){
+            brightness[0] = 1;
+        }
+        Colour adjustedColour(t.colour.red, t.colour.green, t.colour.blue, brightness[0]);
+        vec3 direction = cameraPosition - triangleMiddle;
+        float distance = glm::length(direction);
+        // float triangleOrientation = glm::dot(normal, direction);
+        // if(triangleOrientation < 0){
+        //     normal = normal * -1.0f;
+        //     continue;
+        // }
+        if(distance < 3 || distance > 30){
+            continue;
+        }
+        CanvasTriangle projectedTriangle = triangleToCanvas(t);
+        // projectedTriangle.colour = adjustedColour;
+        projectedTriangle.vertices[0].normal = t.normals[0];
+        projectedTriangle.vertices[1].normal = t.normals[1];
+        projectedTriangle.vertices[2].normal = t.normals[2];
+
+        drawFilledTriangle(projectedTriangle);
+    }
+}
+
+vector<float> getEmptyZArray(){
+    vector<float> a;
+    for (int i = 0; i < WIDTH*HEIGHT; i++){
+        a.push_back(std::numeric_limits<float>::infinity());
+    }
+    return a;
+}
+
+
+// //**** Helper functions for Wu line algorithm *****
+// //integer part of x
+// float ipart(float x){
+//     return floor(x);
+// }
+//
+// float roundPart(float x){
+//     return ipart(x+0.5);
+// }
+//
+// //fractional part of x
+// float fpart(float x){
+//     return x-floor(x);
+// }
+//
+// float rfpart(float x){
+//     return 1 - fpart(x);
+// }
+//
+// void drawPoint(int x, int y, Colour colour, float brightness){
+//     Colour adjustedColour = Colour(colour.red, colour.green, colour.blue, brightness);
+//     window.setPixelColour(x, y, adjustedColour.getPacked());
+// }
+//
+//
+// void drawWuLine(CanvasPoint from, CanvasPoint to, Colour colour){
+//     // bool steep = ifSteep(from, to);
+//     float x0 = from.x;
+//     float y0 = from.y;
+//     float x1 = to.x;
+//     float y1 = to.y;
+//     int steep = abs(y1-y0) > abs(x1-x0);
+//
+//     if(steep){
+//         swap(x0, y0);
+//         swap(x1, y1);
+//     }
+//     if(x0 > x1){
+//         swap(x0, x1);
+//         swap(y0, y1);
+//
+//     }
+//     //compute the slope
+//     float dx = x1-x0;
+//     float dy = y1-y0;
+//     float gradient = dy/dx;
+//     if(dx == 0.0){
+//         gradient = 1;
+//     }
+//     //first endpoint
+//     int xend = round(x0);
+//     float yend = y0 + (gradient * (xend-x0));
+//     float xgap = fpart(x0+0.5);
+//     int xpxl1 = xend;
+//     int ypxl1 = ipart(yend);
+//
+//     if(steep){
+//         drawPoint(ypxl1, xpxl1, colour, rfpart(yend)*xgap);
+//         drawPoint(ypxl1+1, xpxl1, colour, fpart(yend)*xgap);
+//     }
+//     else{
+//         drawPoint(xpxl1, ypxl1  , colour, rfpart(yend) * xgap);
+//         drawPoint(xpxl1, ypxl1+1, colour, fpart(yend) * xgap);
+//     }
+//     float yintersect =  yend + gradient; // first y intersection
+//
+//     //second enpoint
+//     xend = round(x1);
+//     yend = y1 + (gradient *(xend - x1));
+//     xgap = fpart(x1 +0.5);
+//     int xpxl2 = xend;
+//     int ypxl2 = ipart(yend);
+//
+//     if(steep){
+//         drawPoint(ypxl2, xpxl2, colour, rfpart(yend) * xgap);
+//         drawPoint(ypxl2+1, xpxl2, colour, fpart(yend) * xgap);
+//     }
+//     else{
+//         drawPoint(xpxl2, ypxl2, colour, rfpart(yend) * xgap);
+//         drawPoint(xpxl2, ypxl2+1, colour, fpart(yend) * xgap);
+//     }
+//
+//     // main loop
+//     if(steep){
+//         for(int x=xpxl1+1; x<xpxl2-1; x++){
+//             drawPoint(ipart(yintersect), x, colour, rfpart(yintersect));
+//             drawPoint(ipart(yintersect)+1, x, colour, fpart(yintersect));
+//             yintersect = yintersect + gradient;
+//         }
+//     }
+//     else{
+//         for(int x=xpxl1+1; x<xpxl2-1; x++){
+//             drawPoint(x, ipart(yintersect), colour, rfpart(yintersect));
+//             drawPoint(x, ipart(yintersect)+1, colour, fpart(yintersect));
+//             yintersect = yintersect + gradient;
+//         }
+//     }
+// }
+//
+// void drawStrokeTriangle(CanvasTriangle t){
+//     drawLine(t.vertices[0], t.vertices[1], t.colour);
+//     drawLine(t.vertices[0], t.vertices[2], t.colour);
+//     drawLine(t.vertices[1], t.vertices[2], t.colour);
+// }
+//
+// void drawWuStrokeTriangle(CanvasTriangle t){
+//     drawWuLine(t.vertices[0], t.vertices[1], t.colour);
+//     drawWuLine(t.vertices[0], t.vertices[2], t.colour);
+//     drawWuLine(t.vertices[1], t.vertices[2], t.colour);
+// }
+//
+//
+// void drawFrame(CanvasTriangle t, vector<float> &zArray){
+//     drawRow(t.vertices[0], t.vertices[1], t.colour, zArray);
+//     drawRow(t.vertices[0], t.vertices[2], t.colour, zArray);
+//     drawRow(t.vertices[1], t.vertices[2], t.colour, zArray);
+// }
+//
+// void drawFilledTriangle(CanvasTriangle t, vector<float> &zArray){
+//     t.calculateTriangleMeta();
+//     // cout << t.topStarts.size() << endl;
+//     for (int i = 0; i < t.topStarts.size(); i++){
+//         drawRow(t.topStarts.at(i), t.topEnds.at(i), t.colour, zArray);
+//     }
+//     for (int i = 0; i < t.bottomStarts.size(); i++){
+//         drawRow(t.bottomStarts.at(i), t.bottomEnds.at(i), t.colour, zArray);
+//     }
+// }
+//
+// void drawRow(CanvasPoint from, CanvasPoint to, Colour colour, vector<float> &zArray){
+//     if (from.x > to.x) swap(to, from);
+//     int y = round(from.y);
+//     int rowWidth = round(to.x-from.x);
+//     for (int x = 0; x < rowWidth; x++){
+//         if ((y < HEIGHT) && (y >= 0)  && ((from.x+x) >=0) && ((from.x+x) < WIDTH-1) ){
+//             if (rowWidth == 1) continue;
+//             float depth = -1/(from.depth+((to.depth-from.depth)*x/(rowWidth-1)));
+//             if (depth > zArray.at(y*WIDTH + from.x + x)){
+//                 zArray.at(y*WIDTH + from.x + x) = depth;
+//                 window.setPixelColour((from.x + x), y, colour.getPacked());
+//             } else {
+//                 // cout << "z array: " << zArray.at(y*WIDTH + from.x + x) << " depth: " << depth << endl;
+//                 // cout << "pixel is behind " << from.x+x << ",  " << y << endl;
+//                 // window.setPixelColour(round(from.x + x), y, Colour(255, 255, 255).getPacked());
+//             }
+//         }
+//     }
+// }
+
+// vector<CanvasPoint> interpolateRow(CanvasPoint start, CanvasPoint end, int steps){
+//     vector<CanvasPoint> points;
+//     for (int i=0; i<steps; i++){
+//         CanvasPoint p;
+//         if (steps == 1) steps = 2;
+//         p.x = start.x+((end.x-start.x)*i/(steps-1));
+//         p.y = start.y+((end.y-start.y)*i/(steps-1));
+//         p.depth = start.depth+((end.depth-start.depth)*i/(steps-1));
+//         points.push_back(p);
+//     }
+//     return points;
+// }
+
+// vector<CanvasPoint> interpolatePoints(CanvasPoint start, CanvasPoint end, int steps){
+//     vector<CanvasPoint> points;
+//     for (int i=0; i<steps; i++){
+//         CanvasPoint p;
+//         if (steps == 1) steps = 2;
+//         p.x = start.x+((end.x-start.x)*i/(steps-1));
+//         p.y = start.y+((end.y-start.y)*i/(steps-1));
+//         // cout << "R " << v.x << endl;
+//         // cout << "G " << v.y << endl;
+//         // cout << "B " << v.z << endl;
+//         points.push_back(p);
+//     }
+//     return points;
+// }
+//
+// CanvasPoint texturePointToCanvasPoint(TexturePoint t){
+//     CanvasPoint p = CanvasPoint(t.x, t.y);
+//     return p;
+// }
+//
+// void createTextureTriangle(){
+//     Image i = loadImage();
+//     CanvasPoint a = CanvasPoint(160, 10);
+//     TexturePoint ap = TexturePoint(195, 5);
+//     a.texturePoint = ap;
+//     CanvasPoint b = CanvasPoint(300, 230);
+//     TexturePoint bp = TexturePoint(395, 380);
+//     b.texturePoint = bp;
+//     CanvasPoint c = CanvasPoint(10, 150);
+//     TexturePoint cp = TexturePoint(65 ,330);
+//     c.texturePoint = cp;
+//     CanvasTriangle t = CanvasTriangle(a, b, c);
+//     t.calculateTriangleMeta();
+//     float ratio = (t.middle.y - t.top.y) / (t.bottom.y - t.top.y);
+//     t.middleIntersect.texturePoint.x = (t.bottom.texturePoint.x - t.top.texturePoint.x) * ratio + t.top.texturePoint.x;
+//     t.middleIntersect.texturePoint.y = (t.bottom.texturePoint.y - t.top.texturePoint.y) * ratio + t.top.texturePoint.y;
+//     // drawTrianglesForTexture(t);
+//     //Top triangle
+//     int height = t.middle.y-t.top.y;
+//     vector<CanvasPoint> starts = interpolatePoints(t.top, t.middle, height);
+//     vector<CanvasPoint> ends = interpolatePoints(t.top, t.middleIntersect, height);
+//     vector<CanvasPoint> textureStarts = interpolatePoints(texturePointToCanvasPoint(t.top.texturePoint), texturePointToCanvasPoint(t.middle.texturePoint), height);
+//     vector<CanvasPoint> textureEnds = interpolatePoints(texturePointToCanvasPoint(t.top.texturePoint), texturePointToCanvasPoint(t.middleIntersect.texturePoint), height);
+//     for (int y = 0; y<height; y++){
+//         int width = ends.at(y).x - starts.at(y).x;
+//         // cout << width << endl;
+//         vector<CanvasPoint> row = interpolatePoints(textureStarts.at(y), textureEnds.at(y), width);
+//         for (int x=0; x<width; x++){
+//             window.setPixelColour(starts.at(y).x+x, starts.at(y).y, i.getPixel(row.at(x).x, row.at(x).y).getPacked());
+//         }
+//     }
+//     cout << "starting bottom triangle" << endl;
+//     //Bottom triangle
+//     int bottomHeight = t.bottom.y-t.middle.y;
+//     vector<CanvasPoint> bottomStarts = interpolatePoints(t.middle, t.bottom, bottomHeight);
+//     vector<CanvasPoint> bottomEnds = interpolatePoints(t.middleIntersect, t.bottom, bottomHeight);
+//     // cout << bottomStarts.size() << endl;
+//     // cout << bottomEnds.size() << endl;
+//     vector<CanvasPoint> bottomTextureStarts = interpolatePoints(texturePointToCanvasPoint(t.middle.texturePoint), texturePointToCanvasPoint(t.bottom.texturePoint), bottomHeight);
+//     vector<CanvasPoint> bottomTextureEnds = interpolatePoints(texturePointToCanvasPoint(t.middleIntersect.texturePoint), texturePointToCanvasPoint(t.bottom.texturePoint), bottomHeight);
+//     for (int y = 0; y<bottomHeight; y++){
+//         int width = bottomEnds.at(y).x - bottomStarts.at(y).x;
+//         // cout << width << endl;
+//         // cout << y << endl;
+//         vector<CanvasPoint> row = interpolatePoints(bottomTextureStarts.at(y), bottomTextureEnds.at(y), width);
+//         for (int x=0; x<width; x++){
+//             cout << "x: " << x << endl;
+//             window.setPixelColour(bottomStarts.at(y).x+x, bottomStarts.at(y).y-1, i.getPixel(row.at(x).x, row.at(x).y).getPacked());
+//         }
+//     }
+// }
+//
+// CanvasTriangle triangleToCanvas(ModelTriangle t){
+//   CanvasTriangle projection;
+//   for(int i = 0; i<3; i++){
+//     float xWorld = t.vertices[i].x;
+//     float yWorld = t.vertices[i].y;
+//     float zWorld = t.vertices[i].z;
+//
+//     vec3 a(xWorld-cameraPosition.x,yWorld-cameraPosition.y, zWorld- cameraPosition.z);
+//     a = a * cameraOrientation;
+//     float ratio = focalLength/a.z;
+//     int xp = -ratio*a.x + WIDTH/2;
+//     int yp = ratio*(a.y) +HEIGHT/2;
+//     CanvasPoint projectedPoint(xp,yp, a.z);
+//     projection.vertices[i] = projectedPoint;
+//     projection.colour = t.colour;
+//   }
+//   return projection;
+// }
+//
+// void drawWireframes(vector<ModelTriangle> triangles){
+//     vector<float> zArray = getEmptyZArray();
+//     for (int i = 0; i < triangles.size(); i++){
+//         ModelTriangle currentTriangle = triangles.at(i);
+//         CanvasTriangle t = triangleToCanvas(currentTriangle);
+//         drawStrokeTriangle(t);
+//         // drawFrame(t, zArray);
+//     }
+// }
+//
+// void rasterizeModel(vector<ModelTriangle> triangles){
+//     vector<float> zArray = getEmptyZArray();
+//     for (int i = 0; i < triangles.size(); i++){
+//         ModelTriangle currentTriangle = triangles.at(i);
+//         CanvasTriangle t = triangleToCanvas(currentTriangle);
+//         //drawFrame(t, zArray);
+//         // drawStrokeTriangle(t);
+//         drawFilledTriangle(t, zArray);
+//
+//     }
+// }
+
+
+//FILE HANDLING
 
 Image loadImage(){
     string pSix;
@@ -339,7 +922,6 @@ void savePPM(){
     uint32_t pixel;
     time_t seconds;
     seconds = time (NULL);
-    //add to_string(n) for different frame numbers
     string filename = "./frames/frame" + to_string(seconds) + ".ppm";
     ofstream out(filename, std::ios::out | std::ios::binary);
     if(!out){
@@ -368,79 +950,6 @@ void displayImage(){
     for (int y=0; y<image.height; y++){
         for (int x=0; x<image.width; x++){
             window.setPixelColour(x, y, image.pixels.at((y*image.width)+x).getPacked());
-        }
-    }
-}
-
-
-vector<CanvasPoint> interpolatePoints(CanvasPoint start, CanvasPoint end, int steps){
-    vector<CanvasPoint> points;
-    for (int i=0; i<steps; i++){
-        CanvasPoint p;
-        if (steps == 1) steps = 2;
-        p.x = start.x+((end.x-start.x)*i/(steps-1));
-        p.y = start.y+((end.y-start.y)*i/(steps-1));
-        // cout << "R " << v.x << endl;
-        // cout << "G " << v.y << endl;
-        // cout << "B " << v.z << endl;
-        points.push_back(p);
-    }
-    return points;
-}
-
-CanvasPoint texturePointToCanvasPoint(TexturePoint t){
-    CanvasPoint p = CanvasPoint(t.x, t.y);
-    return p;
-}
-
-void createTextureTriangle(){
-    Image i = loadImage();
-    CanvasPoint a = CanvasPoint(160, 10);
-    TexturePoint ap = TexturePoint(195, 5);
-    a.texturePoint = ap;
-    CanvasPoint b = CanvasPoint(300, 230);
-    TexturePoint bp = TexturePoint(395, 380);
-    b.texturePoint = bp;
-    CanvasPoint c = CanvasPoint(10, 150);
-    TexturePoint cp = TexturePoint(65 ,330);
-    c.texturePoint = cp;
-    CanvasTriangle t = CanvasTriangle(a, b, c);
-    t.calculateTriangleMeta();
-    float ratio = (t.middle.y - t.top.y) / (t.bottom.y - t.top.y);
-    t.middleIntersect.texturePoint.x = (t.bottom.texturePoint.x - t.top.texturePoint.x) * ratio + t.top.texturePoint.x;
-    t.middleIntersect.texturePoint.y = (t.bottom.texturePoint.y - t.top.texturePoint.y) * ratio + t.top.texturePoint.y;
-    // drawTrianglesForTexture(t);
-    //Top triangle
-    int height = t.middle.y-t.top.y;
-    vector<CanvasPoint> starts = interpolatePoints(t.top, t.middle, height);
-    vector<CanvasPoint> ends = interpolatePoints(t.top, t.middleIntersect, height);
-    vector<CanvasPoint> textureStarts = interpolatePoints(texturePointToCanvasPoint(t.top.texturePoint), texturePointToCanvasPoint(t.middle.texturePoint), height);
-    vector<CanvasPoint> textureEnds = interpolatePoints(texturePointToCanvasPoint(t.top.texturePoint), texturePointToCanvasPoint(t.middleIntersect.texturePoint), height);
-    for (int y = 0; y<height; y++){
-        int width = ends.at(y).x - starts.at(y).x;
-        // cout << width << endl;
-        vector<CanvasPoint> row = interpolatePoints(textureStarts.at(y), textureEnds.at(y), width);
-        for (int x=0; x<width; x++){
-            window.setPixelColour(starts.at(y).x+x, starts.at(y).y, i.getPixel(row.at(x).x, row.at(x).y).getPacked());
-        }
-    }
-    cout << "starting bottom triangle" << endl;
-    //Bottom triangle
-    int bottomHeight = t.bottom.y-t.middle.y;
-    vector<CanvasPoint> bottomStarts = interpolatePoints(t.middle, t.bottom, bottomHeight);
-    vector<CanvasPoint> bottomEnds = interpolatePoints(t.middleIntersect, t.bottom, bottomHeight);
-    // cout << bottomStarts.size() << endl;
-    // cout << bottomEnds.size() << endl;
-    vector<CanvasPoint> bottomTextureStarts = interpolatePoints(texturePointToCanvasPoint(t.middle.texturePoint), texturePointToCanvasPoint(t.bottom.texturePoint), bottomHeight);
-    vector<CanvasPoint> bottomTextureEnds = interpolatePoints(texturePointToCanvasPoint(t.middleIntersect.texturePoint), texturePointToCanvasPoint(t.bottom.texturePoint), bottomHeight);
-    for (int y = 0; y<bottomHeight; y++){
-        int width = bottomEnds.at(y).x - bottomStarts.at(y).x;
-        // cout << width << endl;
-        // cout << y << endl;
-        vector<CanvasPoint> row = interpolatePoints(bottomTextureStarts.at(y), bottomTextureEnds.at(y), width);
-        for (int x=0; x<width; x++){
-            cout << "x: " << x << endl;
-            window.setPixelColour(bottomStarts.at(y).x+x, bottomStarts.at(y).y-1, i.getPixel(row.at(x).x, row.at(x).y).getPacked());
         }
     }
 }
@@ -719,49 +1228,7 @@ vector<ModelTriangle> initialiseModels(vector<ModelTriangle> &cornell, vector<Mo
     return model;
 }
 
-CanvasTriangle triangleToCanvas(ModelTriangle t){
-  CanvasTriangle projection;
-  for(int i = 0; i<3; i++){
-    float xWorld = t.vertices[i].x;
-    float yWorld = t.vertices[i].y;
-    float zWorld = t.vertices[i].z;
-
-    vec3 a(xWorld-cameraPosition.x,yWorld-cameraPosition.y, zWorld- cameraPosition.z);
-    a = a * cameraOrientation;
-    float ratio = focalLength/a.z;
-    int xp = -ratio*a.x + WIDTH/2;
-    int yp = ratio*(a.y) +HEIGHT/2;
-    CanvasPoint projectedPoint(xp,yp, a.z);
-    projection.vertices[i] = projectedPoint;
-    projection.colour = t.colour;
-  }
-  return projection;
-}
-
-void drawWireframes(vector<ModelTriangle> triangles){
-    vector<float> zArray = getEmptyZArray();
-    for (int i = 0; i < triangles.size(); i++){
-        ModelTriangle currentTriangle = triangles.at(i);
-        CanvasTriangle t = triangleToCanvas(currentTriangle);
-        drawStrokeTriangle(t);
-        //drawFrame(t, zArray);
-    }
-}
-
-void rasterizeModel(vector<ModelTriangle> triangles){
-    vector<float> zArray = getEmptyZArray();
-    for (int i = 0; i < triangles.size(); i++){
-        ModelTriangle currentTriangle = triangles.at(i);
-        CanvasTriangle t = triangleToCanvas(currentTriangle);
-        //drawFrame(t, zArray);
-        drawFilledTriangle(t, zArray);
-
-    }
-}
-
-
-
-// TO DO: normalise all the points so theyre all point downwards
+// TO DO: normalise all the points so they all point downwards
 void initialiseLights(vector<ModelTriangle>triangles, int numberOfLights){
     vector<ModelTriangle> lightTriangles;
     //change these if necessary
@@ -830,6 +1297,8 @@ void initialiseLights(vector<ModelTriangle>triangles, int numberOfLights){
 }
 
 
+//RAYTRACER
+
 
 float getBrightness(vec3 normal, vec3 lightToIntersection, vec3 ray, bool print){
     float brightness = 1/(4 * PI * length(lightToIntersection)*length(lightToIntersection));
@@ -872,8 +1341,7 @@ bool inHardShadow(vector<ModelTriangle> triangles, vec3 surfacePoint, int curren
     vec3 shadowRay = light-surfacePoint;
     bool inShadow = false;
     float distanceFromLight = glm::length(shadowRay);
-#pragma omp parallel
-#pragma omp for
+#pragma omp parallel for
     for(int i=0; i<triangles.size(); i++){
         ModelTriangle triangle = triangles.at(i);
         vec3 e0 = vec3(triangle.vertices[1] - triangle.vertices[0]);
@@ -894,8 +1362,7 @@ bool inHardShadow(vector<ModelTriangle> triangles, vec3 surfacePoint, int curren
 float getSoftShadow(vec3 surfaceNormal, vec3 surfacePoint, vector<ModelTriangle> triangles, int currentTriangleIndex){
     float shadeValue = 0.0f;
     float shadowCount = 0.0f;
-#pragma omp parallel
-#pragma omp for
+#pragma omp parallel for
     for(int i=0; i<lightPositions.size(); i++){
         if(inHardShadow(triangles, surfacePoint,currentTriangleIndex,lightPositions.at(i))){
             shadowCount ++;
@@ -933,14 +1400,9 @@ vec3 getReflectedRay(vec3 normal, vec3 ray){
  RayTriangleIntersection getClosestIntersection(vector<ModelTriangle> triangles, vec3 ray, vec3 startPosition, int depth){
     RayTriangleIntersection closestIntersection;
     closestIntersection.distanceFromCamera = std::numeric_limits<float>::infinity();
-#pragma omp parallel
-#pragma omp for
+#pragma omp parallel for
     for (int i=0; i<triangles.size(); i++){
         ModelTriangle triangle = triangles.at(i);
-        // cout << triangle.objectName << endl;
-        if(!triangle.objectName.compare("sphere")){
-            // cout << triangle.colour << endl;
-        }
         vec3 e0 = vec3(triangle.vertices[1] - triangle.vertices[0]);
         vec3 e1 = vec3(triangle.vertices[2] - triangle.vertices[0]);
         vec3 SPVector = vec3(startPosition-triangle.vertices[0]);
@@ -1057,72 +1519,9 @@ Colour glass(vector<ModelTriangle>triangles, vec3 ray, vec3 intersection, vec3 n
     return refractedIntersection.intersectionPointColour;
 }
 
-//DONT NEED
-Colour getReflection(vector<ModelTriangle> &triangles, vec3 source, vec3 ray, int index){
-    RayTriangleIntersection closestReflection;
-    Colour intersectedColour;
-    closestReflection.distanceFromCamera = std::numeric_limits<float>::max();
-    for(int i = 0; i < triangles.size(); i++){
-        ModelTriangle triangle = triangles.at(i);
-        vec3 e0 = vec3(triangle.vertices[1] - triangle.vertices[0]);
-        vec3 e1 = vec3(triangle.vertices[2] - triangle.vertices[0]);
-        vec3 SPVector = vec3(source-triangle.vertices[0]);
-        mat3 DEMatrix(-(ray), e0, e1);
-        vec3 possibleSolution = glm::inverse(DEMatrix) * SPVector;
-        // && (i!=index)
-        if(solutionOnTriangle(possibleSolution) && possibleSolution.x > 0.001f){
-            if(possibleSolution.x < closestReflection.distanceFromCamera){
-                vec3 intersection = triangle.vertices[0] + possibleSolution.y*e0 + possibleSolution.z*e1;
-                vec3 lightToIntersection = lightPosition - intersection;
-                // Probably dont need all of this
-                closestReflection.distanceFromCamera = possibleSolution.x;
-                closestReflection.intersectionPoint = intersection;
-                closestReflection.intersectedTriangle = triangle;
-                vec3 normal;
-                bool print = false;
-                if(!triangle.objectName.compare("sphere")){
-                    normal = calculateNormal(triangle, possibleSolution);
-                }
-                else{
-                    normal = glm::cross(e0,e1);
-                }
-                float brightness = getBrightness(normal,lightToIntersection, ray, print);
-                if(shadowMode == 0){
-                    bool inShadow = inHardShadow(triangles, intersection, i, lightPosition);
-                    if(inShadow){
-                        brightness = 0.15f;
-                    }
-                }
-                else if(shadowMode == 1){
-                    float shadeValue = getSoftShadow(normal, intersection, triangles, i);
-                    float shadeProp = 1 - shadeValue;
-                    brightness *= shadeProp;
-                    if(brightness < 0.15){
-                        brightness = 0.15f;
-                    }
-
-                }
-                if(brightness > 1.0f){
-                    brightness = 1.0f;
-                }
-                Colour adjustedColour = Colour(triangle.colour.red, triangle.colour.green, triangle.colour.blue, brightness);
-                closestReflection.intersectionPointColour = adjustedColour;
-            }
-        }
-    }
-    if(closestReflection.distanceFromCamera == std::numeric_limits<float>::max()){
-        intersectedColour = Colour(0,0,0);
-    }
-    else{
-        // intersectedColour = closestReflection.intersectedTriangle.colour;
-        intersectedColour = closestReflection.intersectionPointColour;
-    }
-    return intersectedColour;
-}
 
 void raytraceModel(vector<ModelTriangle> triangles){
-#pragma omp parallel
-#pragma omp for
+#pragma omp parallel for
     for(int y= 0; y< HEIGHT; y++){
         for (int x = 0; x < WIDTH; x++){
             vec3 point = vec3(WIDTH/2 -x, y-(HEIGHT/2), focalLength);
@@ -1141,8 +1540,7 @@ void raytraceModel(vector<ModelTriangle> triangles){
 // or quasi monte carlo sampling
 void raytraceModelAA(vector<ModelTriangle> triangles){
 //Quincux sampling
-#pragma omp parallel
-#pragma omp for
+#pragma omp parallel for
     for(int y = 0; y < HEIGHT; y++){
         for (int x = 0; x < WIDTH; x++ ){
             vec3 point = vec3(WIDTH/2 -x, y-(HEIGHT/2), focalLength);
@@ -1177,12 +1575,23 @@ void raytraceModelAA(vector<ModelTriangle> triangles){
     }
 }
 
-vector<float> getEmptyZArray(){
-    vector<float> a;
-    for (int i = 0; i < WIDTH*HEIGHT; i++){
-        a.push_back(-std::numeric_limits<float>::infinity());
+vec3 findTriangleCentre(ModelTriangle t){
+    vec3 sum(0,0,0);
+    for(int j = 0; j < 3; j++){
+        sum += t.vertices[j];
     }
-    return a;
+    sum /= 3.0f;
+    return sum;
+}
+
+vec3 getSceneCentre(vector<ModelTriangle> triangles){
+    vec3 sum(0,0,0);
+    for(int i = 0; i < triangles.size(); i++){
+        ModelTriangle t = triangles.at(i);
+        sum += findTriangleCentre(t);
+    }
+    sum /= (float)(triangles.size());
+    return sum;
 }
 
 void rotateInX(float a){
@@ -1222,6 +1631,7 @@ void resetCamera(){
                                     vec3(0,1,0),
                                     vec3(0,0,1));
     cameraPosition = vec3(0,1,6);
+    lightPosition = vec3(-0.2334011,4.8,-4.043968);
 }
 
 
@@ -1318,13 +1728,26 @@ void handleEvent(SDL_Event event)
         else if(event.key.keysym.sym == SDLK_l) {
             cout << "L" << endl;
             window.clearPixels();
-            lookAt(vec3(0, 0, 0));
+            lookAt(sceneCentre);
         }
-        // else if(event.key.keysym.sym == SDLK_p) {
-        //     cout << "P" << endl;
-        //     window.clearPixels();
-        //     rasterizeModel(loadObj("cornell-box/cornell-box.obj"));
-        // }
+        else if(event.key.keysym.sym == SDLK_u){
+            lightPosition.z -=0.5;
+        }
+        else if(event.key.keysym.sym == SDLK_j){
+            lightPosition.z +=0.5;
+        }
+        else if(event.key.keysym.sym == SDLK_k){
+            lightPosition.x +=0.5;
+        }
+        else if(event.key.keysym.sym == SDLK_h){
+            lightPosition.x -=0.5;
+        }
+        else if(event.key.keysym.sym == SDLK_y){
+            lightPosition.y +=0.1;
+        }
+        else if(event.key.keysym.sym == SDLK_g){
+            lightPosition.y -=0.1;
+        }
         else if(event.key.keysym.sym == SDLK_r) {
             cout << "Reset" << endl;
             resetCamera();

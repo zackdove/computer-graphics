@@ -1,3 +1,5 @@
+#ifndef IMAGE_H
+#define IMAGE_H
 #include <iostream>
 #include <vector>
 
@@ -30,3 +32,4 @@ std::ostream& operator<<(std::ostream& os, const Image& i)
     os << "Image: Width= " << i.width << ", Height= " << i.height << std::endl;
     return os;
 }
+#endif 

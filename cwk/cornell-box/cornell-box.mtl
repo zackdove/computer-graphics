@@ -30,3 +30,12 @@ Kd 0.63 0.065 0.05
 
 newmtl SemiGrey
 Kd 0.725 0.71 0.68
+
+newmtl White2
+Kd 0.75 0.75 0.75
+
+newmtl Red2
+Kd 0.75 0.15 0.15
+
+newmtl Green2
+Kd 0.15 0.75 0.15

@@ -11,6 +11,8 @@ class CanvasPoint
     float y;
     double depth;
     float brightness;
+    glm::vec3 normal;
+    Colour colour;
     TexturePoint texturePoint;
 
     CanvasPoint()

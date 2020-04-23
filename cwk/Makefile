@@ -16,6 +16,7 @@ FUSSY_OPTIONS = -Werror -pedantic
 SANITIZER_OPTIONS = -O1 -fsanitize=undefined -fsanitize=address -fno-omit-frame-pointer
 SPEEDY_OPTIONS = -Ofast -funsafe-math-optimizations -march=native
 LINKER_OPTIONS =
+LOMP_OPTIONS =
 
 # Set up flags
 SDW_COMPILER_FLAGS := -I./libs/sdw
@@ -55,7 +56,7 @@ speedy: window
 
 # Rule to build for high performance executable
 vfast: window
-	$(COMPILER_CLANG) -Xpreprocessor -fopenmp $(COMPILER_OPTIONS) $(SPEEDY_OPTIONS) -lomp -o  $(OBJECT_FILE) $(SOURCE_FILE) $(SDL_COMPILER_FLAGS) $(SDW_COMPILER_FLAGS) $(GLM_COMPILER_FLAGS)
+	$(COMPILER_CLANG) -Xpreprocessor -fopenmp $(COMPILER_OPTIONS) $(SPEEDY_OPTIONS) -lomp -o  $(OBJECT_FILE)  $(SOURCE_FILE) $(SDL_COMPILER_FLAGS) $(SDW_COMPILER_FLAGS) $(GLM_COMPILER_FLAGS)
 	$(COMPILER) -Xpreprocessor -fopenmp $(LINKER_OPTIONS) $(SPEEDY_OPTIONS) -lomp -o  $(EXECUTABLE) $(OBJECT_FILE) $(SDW_LINKER_FLAGS) $(SDL_LINKER_FLAGS)
 	./$(EXECUTABLE)
 
