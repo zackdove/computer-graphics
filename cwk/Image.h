@@ -13,6 +13,9 @@ class Image
       vector<Colour> pixels;
 
 
+    Image(){
+        
+    }
 
     Image(int w, int h, vector<Colour> p)
     {
@@ -32,4 +35,4 @@ std::ostream& operator<<(std::ostream& os, const Image& i)
     os << "Image: Width= " << i.width << ", Height= " << i.height << std::endl;
     return os;
 }
-#endif 
+#endif

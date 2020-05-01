@@ -9,8 +9,12 @@ class ModelTriangle
     Colour colour;
     std::string objectName;
     glm::vec3 normals[3];
-    //change this to work with different textures
-    bool mirror;
+    glm::vec2 texture[3];
+    float emission;
+    int transparency;
+    float reflectivity;
+    float IOR;
+    glm::vec3 sigma;
 
 
     ModelTriangle()
@@ -52,6 +56,10 @@ std::ostream& operator<<(std::ostream& os, const ModelTriangle& triangle)
     os << "(" << triangle.vertices[2].x << ", " << triangle.vertices[2].y << ", " << triangle.vertices[2].z << ")" << std::endl;
     os << "Colour " << triangle.colour << std::endl;
     os << "Object " << triangle.objectName << std::endl;
+    os << "emission " << triangle.emission << std::endl;
+    os << "transparency " << triangle.transparency << std::endl;
+    os << "reflectivity  " << triangle.reflectivity << std::endl;
+    os << "IOR " << triangle.IOR << std::endl;
     os << std::endl;
     return os;
 }

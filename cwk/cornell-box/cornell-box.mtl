@@ -39,3 +39,18 @@ Kd 0.75 0.15 0.15
 
 newmtl Green2
 Kd 0.15 0.75 0.15
+
+newmtl Cyan2
+Kd 0.15 0.75 0.75
+
+newmtl Blue2
+Kd 0.15 0.15 0.75
+
+newmtl Silver
+Kd 0.95 0.93 0.88
+
+newmtl lightGreen
+Kd 0.4 1 0.698
+
+newmtl lightYellow
+Kd 1 0.8 0.89
